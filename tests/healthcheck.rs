@@ -32,12 +32,12 @@ async fn healthcheck_endpoint() {
 }
 
 #[actix_rt::test]
-async fn subscribe_200_valid_form_data() {
+async fn subscription_200_valid_form_data() {
     // Arrange
     let server_address = launch_http_server();
     let client = reqwest::Client::new();
     let body = "email=email_nobody_has%40drconopoima.com&name=Jane%20Doe";
-    let subscriptions_route = &format!("{}/subscriptions", server_address);
+    let subscriptions_route = &format!("{}/subscription", server_address);
     // Act
     let response = client
         .post(subscriptions_route)
@@ -51,7 +51,7 @@ async fn subscribe_200_valid_form_data() {
 }
 
 #[actix_rt::test]
-async fn subscribe_400_incomplete_form_data() {
+async fn subscription_400_incomplete_form_data() {
     // Arrange
     let server_address = launch_http_server();
     let client = reqwest::Client::new();
@@ -60,7 +60,7 @@ async fn subscribe_400_incomplete_form_data() {
         ("email=email_nobody_has%40drconopoima.com", "missing name"),
         ("", "missing email and name"),
     ];
-    let subscriptions_route = &format!("{}/subscriptions", server_address);
+    let subscriptions_route = &format!("{}/subscription", server_address);
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
