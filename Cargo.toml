@@ -2,8 +2,24 @@
 name = "newsletter-rs"
 version = "0.1.0"
 authors = ["Luis Jesus Diaz Manzo <luis@drconopoima.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2018"
+repository = "https://github.com/drconopoima/newsletter-rs.git"
+
+[lib]
+path="src/lib.rs"
+
+[[bin]]
+path="src/main.rs"
+name="newsletter-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-web = "4.0.0-beta.6"
+
+[dev-dependencies]
+actix = "0.11"
+actix-rt = "2"
+reqwest = "0.11"
+tokio = "1"
