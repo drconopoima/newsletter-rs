@@ -2,11 +2,17 @@ use actix_web::dev::Server;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use std::net::TcpListener;
 
+#[derive(serde::Deserialize)]
+struct SubscriptionFormData {
+    email: String,
+    name: String,
+}
+
 async fn healthcheck() -> impl Responder {
     HttpResponse::Ok()
 }
 
-async fn subscription() -> HttpResponse {
+async fn subscription(_form: web::Form<SubscriptionFormData>) -> HttpResponse {
     HttpResponse::Ok().finish()
 }
 
