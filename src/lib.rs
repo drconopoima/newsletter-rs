@@ -19,7 +19,9 @@ async fn subscription(_form: web::Form<SubscriptionFormData>) -> HttpResponse {
 pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(|| {
         App::new()
+            // Ensure App to be running correctly
             .route("/healthcheck", web::get().to(healthcheck))
+            // Handle newsletter subscription requests
             .route("/subscription", web::post().to(subscription))
     })
     .listen(listener)?
