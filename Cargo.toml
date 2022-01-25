@@ -16,11 +16,11 @@ name="newsletter-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "4.0.0-beta.6"
-serde = {version = "1", features=["derive"]}
+actix-web = { version="^4.0.0-beta.21" }
+serde = {version = "~1", features=["derive"]}
+tokio = { version = "~1", features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
-actix = "0.11"
-actix-rt = "2"
-reqwest = "0.11"
-tokio = "1"
+actix = "~0.12"
+actix-rt = "~2"
+reqwest = "~0.11"
