@@ -18,7 +18,6 @@ printf "%s [-hq] (v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
 printf "Launch a containerized PostgreSQL database for newsletter-rs\n"
 printf "\n"
 printf "\t -h: Show this help message\n"
-printf "\t -q: Quiet operation, do not show console messages"
 printf "Container Engine: Defaults to Podman (if available in PATH). Otherwise Docker (if available in PATH)\n"
 printf "\n"
 printf "Parameters are customized by exporting any of the following environment variables:\n"
@@ -119,19 +118,31 @@ elif command -v docker 1>/dev/null 2>&1; then
 fi
 
 # Ping until Postgres startup is validated.
-until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q'; do
-  >&2 echo "Postgres is still unavailable - waiting 1 second..."
-  sleep 1
+wait_time=1
+until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q' 2>/dev/null; do
+  >&2 echo "[WARN] Postgres is still unavailable - waiting ${wait_time} second(s)..."
+  sleep "${wait_time}"
+  wait_time=$(( wait_time * 2 ))
 done
 
-printf "Postgres is running and ready\n"
+printf "[PASS] Postgres is running and ready\n"
 
 printf "Creating schema '%s'...\n" "${DB_NAME}"
 psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c "CREATE SCHEMA IF NOT EXISTS ${DB_NAME}" && \
-printf "Successfully created schema '%s'...\n" "${DB_NAME}"
+printf "[PASS] Successfully created schema '%s'...\n" "${DB_NAME}"
 cd "${NEWSLETTER_RS_PATH}" || exit;
 for script in ./migrations/*_*.sql; do
     printf "Running migration script %s...\n" "${script}" 
-    sed 's/COMMIT/ROLLBACK/g' "${script}" | psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" && \
-    psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}"
+    if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
+        sed 's/COMMIT/ROLLBACK/g' "${script}" | psql --quiet "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" && \
+        printf "[PASS] Tested script '%s' successfully" "${script}\n" && \
+        psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}" && \
+        printf "[PASS] Applied DB migration script '%s' successfully" "${script}\n"
+    else
+        printf "[WARN]: No transactions present at script '%s', running without prior testing\n" "${script}"
+        psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}" && \
+        printf "[PASS] Applied DB migration script '%s' successfully" "${script}\n"
+    fi
 done
+
+echo "[PASS] All migration scripts have been run, ready to go!"
