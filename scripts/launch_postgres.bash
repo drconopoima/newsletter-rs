@@ -6,7 +6,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.1.0"
+readonly SCRIPT_VERSION="0.1.1"
 NEWSLETTER_RS_PATH="$( cd -- "$(dirname "${SCRIPT_CALLNAME}")/../" >/dev/null 2>&1 ; pwd -P )"
 readonly NEWSLETTER_RS_PATH
 NEWSLETTER_RS_VERSION="$(grep -m1 '^version' "${NEWSLETTER_RS_PATH}/Cargo.toml" | awk -F "\"" '{ print $2 }' )"
@@ -45,6 +45,11 @@ esac
 done
 
 printf "%s (v%s, newsletter-rs v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}" "${NEWSLETTER_RS_VERSION}"
+
+if ! command -v psql 1>/dev/null 2>&1; then
+  echo >&2 "ERROR: psql (PostgreSQL client) is not installed."
+  exit 1
+fi
 
 ## Section Global Variables
 # Check if a custom user has been set, otherwise default to 'postgres'
@@ -112,3 +117,21 @@ elif command -v docker 1>/dev/null 2>&1; then
         printf "\t docker container rm %s\n" "${CONTAINER_NAME}"
     fi
 fi
+
+# Ping until Postgres startup is validated.
+until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q'; do
+  >&2 echo "Postgres is still unavailable - waiting 1 second..."
+  sleep 1
+done
+
+printf "Postgres is running and ready\n"
+
+printf "Creating schema '%s'...\n" "${DB_NAME}"
+psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c "CREATE SCHEMA IF NOT EXISTS ${DB_NAME}" && \
+printf "Successfully created schema '%s'...\n" "${DB_NAME}"
+cd "${NEWSLETTER_RS_PATH}" || exit;
+for script in ./migrations/*_*.sql; do
+    printf "Running migration script %s...\n" "${script}" 
+    sed 's/COMMIT/ROLLBACK/g' "${script}" | psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" && \
+    psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}"
+done
