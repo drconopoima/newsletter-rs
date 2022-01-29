@@ -139,7 +139,7 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
         printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
         continue
     fi
-    printf "Running migration script %s...\n" "${script}"
+    printf "Running migration script '%s'...\n" "${sqlfilename}"
     if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
         shopt -s lastpipe
         set +Ee
