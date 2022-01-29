@@ -134,13 +134,11 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
     elif command -v md5 1>/dev/null 2>&1; then
         md5="$(md5 "${script}")";
     fi
-    sqlfilename=$(basename ${script});
-    set +Ee;
-    if [[ "$(psql -t -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" | awk '{ print $1 }')" -eq 1 ]]; then
+    sqlfilename=$(basename "${script}");
+    if [[ "$(psql -t "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" 2>/dev/null | awk '{ print $1 }')" -eq 1 ]]; then
         printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
         continue
     fi
-    set -Ee;
     printf "Running migration script %s...\n" "${script}"
     if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
         shopt -s lastpipe
