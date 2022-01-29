@@ -6,7 +6,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.1.1"
+readonly SCRIPT_VERSION="0.2.0"
 NEWSLETTER_RS_PATH="$( cd -- "$(dirname "${SCRIPT_CALLNAME}")/../" >/dev/null 2>&1 ; pwd -P )"
 readonly NEWSLETTER_RS_PATH
 NEWSLETTER_RS_VERSION="$(grep -m1 '^version' "${NEWSLETTER_RS_PATH}/Cargo.toml" | awk -F "\"" '{ print $2 }' )"
