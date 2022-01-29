@@ -135,6 +135,12 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
         md5="$(md5 "${script}")";
     fi
     sqlfilename=$(basename ${script});
+    set +Ee;
+    if [[ "$(psql -t -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" | awk '{ print $1 }')" -eq 1 ]]; then
+        printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
+        continue
+    fi
+    set -Ee;
     printf "Running migration script %s...\n" "${script}"
     if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
         shopt -s lastpipe
@@ -149,14 +155,25 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
             printf "[FAIL] Script '%s' validation failed with return code '%s'\n" "${sqlfilename}" "${returncode}";
             echo "${rollbackoutput}"
             exit 4
-        fi            
+        fi
         psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}" && \
         psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
         printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
     else
-        printf "[WARN]: No transactions present at script '%s', running without prior testing\n" "${sqlfilename}"
-        psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}" && \
-        printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
+        printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
+        shopt -s lastpipe
+        set +Ee
+        psql -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}"  2>&1 | rollbackoutput=$(</dev/stdin)
+        returncode="$?"
+        shopt -u lastpipe
+        set -Ee
+        if [[ returncode -eq 0 ]]; then
+            printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
+        else
+            printf "[FAIL] Script '%s' failed with return code '%s'\n" "${sqlfilename}" "${returncode}";
+            echo "${rollbackoutput}"
+            exit 4
+        fi
     fi
 done
 
