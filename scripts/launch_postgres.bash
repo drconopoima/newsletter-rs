@@ -141,6 +141,7 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
         set +Ee
         sed 's/^COMMIT;/ROLLBACK;/g' "${script}" | psql -v ON_ERROR_STOP=1 --quiet "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" 2>&1 | rollbackoutput=$(</dev/stdin)
         returncode="$?"
+        shopt -u lastpipe
         set -Ee
         if [[ returncode -eq 0 ]]; then
             printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}";
