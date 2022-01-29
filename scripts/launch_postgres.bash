@@ -137,8 +137,18 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
     sqlfilename=$(basename ${script});
     printf "Running migration script %s...\n" "${script}"
     if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
-        sed 's/^COMMIT;/ROLLBACK;/g' "${script}" | psql --quiet "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" && \
-        printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}" && \
+        shopt -s lastpipe
+        set +Ee
+        sed 's/^COMMIT;/ROLLBACK;/g' "${script}" | psql -v ON_ERROR_STOP=1 --quiet "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" 2>&1 | rollbackoutput=$(</dev/stdin)
+        returncode="$?"
+        set -Ee
+        if [[ returncode -eq 0 ]]; then
+            printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}";
+        else
+            printf "[FAIL] Script '%s' validation failed with return code '%s'\n" "${sqlfilename}" "${returncode}";
+            echo "${rollbackoutput}"
+            exit 4
+        fi            
         psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}" && \
         psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
         printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
