@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS newsletter.subscription(
     PRIMARY KEY (id),
     email email NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    subscribtion_date timestamptz NOT NULL
+    subscription_date timestamptz NOT NULL
 );
 COMMIT;
