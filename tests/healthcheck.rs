@@ -77,7 +77,7 @@ async fn subscription_200_valid_form_data() {
     let row_results: (String, String) = sqlx::query_as(
         "SELECT email::text as email,name FROM newsletter.subscription WHERE email=$1",
     )
-    .bind(body.email)
+    .bind(email_field)
     .fetch_one(&mut pg_connection)
     .await
     .expect("Failed to fetch saved subscription.");
