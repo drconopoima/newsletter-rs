@@ -6,7 +6,7 @@ fn launch_http_server() -> String {
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let server = newsletter_rs::run(listener).expect("Failed to listen on address");
+    let server = newsletter_rs::startup::run(listener).expect("Failed to listen on address");
     let _ = tokio::spawn(server);
     format!("http://{}:{}", local_addr, port)
 }
