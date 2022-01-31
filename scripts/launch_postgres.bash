@@ -2,17 +2,7 @@
 # set -x
 set -Eeuo pipefail
 #
-## Section Script Identification
-readonly SCRIPT_CALLNAME="${0}"
-SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
-readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.2.0"
-NEWSLETTER_RS_PATH="$( cd -- "$(dirname "${SCRIPT_CALLNAME}")/../" >/dev/null 2>&1 ; pwd -P )"
-readonly NEWSLETTER_RS_PATH
-NEWSLETTER_RS_VERSION="$(grep -m1 '^version' "${NEWSLETTER_RS_PATH}/Cargo.toml" | awk -F "\"" '{ print $2 }' )"
-readonly NEWSLETTER_RS_VERSION
-
-## Section Functions
+## Section Help
 function help(){
 printf "%s [-hq] (v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
 printf "Launch a containerized PostgreSQL database for newsletter-rs\n"
@@ -43,12 +33,36 @@ case "$option" in
 esac
 done
 
+## Section Script Identification
+readonly SCRIPT_CALLNAME="${0}"
+SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
+readonly SCRIPT_NAME
+readonly SCRIPT_VERSION="0.3.0"
+NEWSLETTER_RS_PATH="$( cd -- "$(dirname "${SCRIPT_CALLNAME}")/../" >/dev/null 2>&1 ; pwd -P )"
+readonly NEWSLETTER_RS_PATH
+NEWSLETTER_RS_VERSION="$(grep -m1 '^version' "${NEWSLETTER_RS_PATH}/Cargo.toml" | awk -F "\"" '{ print $2 }' )"
+readonly NEWSLETTER_RS_VERSION
 printf "%s (v%s, newsletter-rs v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}" "${NEWSLETTER_RS_VERSION}"
 
+## Section validate dependencies
 if ! command -v psql 1>/dev/null 2>&1; then
-  echo >&2 "ERROR: psql (PostgreSQL client) is not installed."
-  exit 1
+    echo >&2 "ERROR: psql (PostgreSQL client) is not installed."
+    exit 1
 fi
+if command -v podman 1>/dev/null 2>&1; then
+    function containertech {
+        podman $@
+    }
+elif command -v docker 1>/dev/null 2>&1; then
+    function containertech {
+        docker $@
+    }
+else
+    echo >&2 "ERROR: No container library (Podman or Docker) is installed."
+    exit 1
+fi
+readonly -f containertech
+export containertech
 
 ## Section Global Variables
 # Check if a custom user has been set, otherwise default to 'postgres'
@@ -66,37 +80,11 @@ readonly DB_REGISTRY=${CONTAINER_REGISTRY:="docker.io/library/postgres"}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
 ## Section Launch Container
-if command -v podman 1>/dev/null 2>&1; then
-    if [ ! "$(podman ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
-        printf "Launching podman postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
-        printf "When ready, clean-up by running:\n"
-        printf "\t podman stop %s\n" "${CONTAINER_NAME}"
-        podman run -d --rm --name ${CONTAINER_NAME} \
-            -e POSTGRES_USER=${DB_USER} \
-            -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-            -e POSTGRES_DB=${DB_NAME} \
-            -p "${DB_PORT}":5432 \
-            ${DB_REGISTRY}:${DB_VERSION} \
-            postgres -N 1000 1>/dev/null
-            # ^ Increased maximum number of connections for testing purposes
-    else
-        printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
-        printf "\n"
-        podman ps -a -f name=${CONTAINER_NAME}
-        printf "\n"
-        printf "Please clean-up by running:\n"
-        if [ "$(podman ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
-            printf "\t podman stop %s\n" "${CONTAINER_NAME}"
-        fi
-        printf "\t podman container rm %s\n" "${CONTAINER_NAME}"
-        
-    fi
-elif command -v docker 1>/dev/null 2>&1; then
-    if [ ! "$(docker ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
-        printf "Launching docker postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
-        printf "When ready, clean-up by running:\n"
-        printf "\t docker stop %s\n" "${CONTAINER_NAME}"
-        docker run -d --rm --name ${CONTAINER_NAME} \
+if [ ! "$(containertech ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
+    printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
+    printf "When ready, clean-up by running:\n"
+    printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
+    containertech run -d --rm --name ${CONTAINER_NAME} \
         -e POSTGRES_USER=${DB_USER} \
         -e POSTGRES_PASSWORD=${DB_PASSWORD} \
         -e POSTGRES_DB=${DB_NAME} \
@@ -104,17 +92,17 @@ elif command -v docker 1>/dev/null 2>&1; then
         ${DB_REGISTRY}:${DB_VERSION} \
         postgres -N 1000 1>/dev/null
         # ^ Increased maximum number of connections for testing purposes
-    else
-        printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
-        printf "\n"
-        docker ps -a -f name=${CONTAINER_NAME}
-        printf "\n"
-        printf "Please clean-up by running:\n"
-        if [ "$(docker ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
-            printf "\t docker stop %s\n" "${CONTAINER_NAME}"
-        fi
-        printf "\t docker container rm %s\n" "${CONTAINER_NAME}"
+else
+    printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
+    printf "\n"
+    containertech ps -a -f name=${CONTAINER_NAME}
+    printf "\n"
+    printf "Please clean-up by running:\n"
+    if [ "$(containertech ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
+        printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
     fi
+    printf "\t {podman/docker} container rm %s\n" "${CONTAINER_NAME}"
+    
 fi
 
 # Ping until Postgres startup is validated.
