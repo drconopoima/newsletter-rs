@@ -1,3 +1,5 @@
+use newsletter_rs::configuration::get_configuration;
+use sqlx::{Connection, PgConnection};
 use std::net::TcpListener;
 
 // Launch an instance for our HTTP server in the background
@@ -35,6 +37,19 @@ async fn healthcheck_endpoint() {
 async fn subscription_200_valid_form_data() {
     // Arrange
     let server_address = launch_http_server();
+    let config_file: &str = "configuration";
+    let configuration = get_configuration(config_file).expect(&format!(
+        "ERROR: Failed to read configuration file: '{}'",
+        &config_file
+    ));
+    let pg_connection_string: String = configuration.database.connection_string();
+    let _pg_connection: PgConnection =
+        PgConnection::connect(&pg_connection_string)
+            .await
+            .expect(&format!(
+                "ERROR: Failed to connect to Postgres at URL: {}",
+                &pg_connection_string
+            ));
     let client = reqwest::Client::new();
     let body = "email=email_nobody_has%40drconopoima.com&name=Jane%20Doe";
     let subscriptions_route = &format!("{}/subscription", server_address);
