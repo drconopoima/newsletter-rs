@@ -13,6 +13,15 @@ pub struct DatabaseSettings {
     pub password: String,
     pub database: String,
 }
+
+impl DatabaseSettings {
+    pub fn connection_string(&self) -> String {
+        format!(
+            "postgresql://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.database
+        )
+    }
+}
 // Read top-level configuration file with compatible extension YAML,JSON...
 pub fn get_configuration(filename: &str) -> Result<Settings, config::ConfigError> {
     // Initialize configuration reader
