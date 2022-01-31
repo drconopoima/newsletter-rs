@@ -36,3 +36,5 @@ features = [
 actix = "^0.12"
 actix-rt = "~2"
 reqwest = "^0.11"
+serde_urlencoded = "^0.7"
+

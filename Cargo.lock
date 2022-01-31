@@ -1117,6 +1117,7 @@ dependencies = [
  "config",
  "reqwest",
  "serde 1.0.135",
+ "serde_urlencoded",
  "sqlx",
  "tokio",
 ]
