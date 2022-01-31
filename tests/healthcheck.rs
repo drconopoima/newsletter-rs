@@ -75,7 +75,7 @@ async fn subscription_200_valid_form_data() {
     // Assert
     assert_eq!(200, response.status().as_u16());
     let row_results: (String, String) = sqlx::query_as(
-        "SELECT email::text as email,name FROM newsletter.subscription WHERE email=$1",
+        "SELECT email::text,name FROM newsletter.subscription WHERE email=$1",
     )
     .bind(email_field)
     .fetch_one(&mut pg_connection)
