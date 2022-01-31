@@ -19,8 +19,20 @@ name="newsletter-rs"
 actix-web = { version="^4.0.0-beta.21" }
 serde = {version = "~1", features=["derive"]}
 tokio = { version = "~1", features = ["macros", "rt-multi-thread"] }
+config = { version="^0.11" }
+[dependencies.sqlx]
+version = "^0.5"
+default-features = false
+features = [
+    "runtime-actix-rustls", 
+    "macros", 
+    "postgres", 
+    "uuid", 
+    "chrono", 
+    "migrate"
+]
 
 [dev-dependencies]
-actix = "~0.12"
+actix = "^0.12"
 actix-rt = "~2"
-reqwest = "~0.11"
+reqwest = "^0.11"
