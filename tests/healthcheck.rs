@@ -1,5 +1,4 @@
 use newsletter_rs::configuration::get_configuration;
-use sqlx::{Connection, PgConnection};
 use std::net::TcpListener;
 
 // Launch an instance for our HTTP server in the background
@@ -18,6 +17,21 @@ struct Body {
     email: String,
     name: String,
 }
+
+#[derive(Debug)]
+pub struct SubscriptionData {
+  pub email: String,
+  pub name: String,
+}
+
+impl From<tokio_postgres::Row> for SubscriptionData {
+    fn from(row: tokio_postgres::Row) -> Self {
+      Self {
+        email: row.get("email"),
+        name: row.get("name"),
+      }
+    }
+  }
 
 #[actix_rt::test]
 async fn healthcheck_endpoint() {
@@ -48,13 +62,6 @@ async fn subscription_200_valid_form_data() {
         "ERROR: Failed to read configuration file: '{}'",
         &config_file
     ));
-    let pg_connection_string: String = configuration.database.connection_string();
-    let mut pg_connection: PgConnection = PgConnection::connect(&pg_connection_string)
-        .await
-        .expect(&format!(
-            "ERROR: Failed to connect to Postgres at URL: {}",
-            &pg_connection_string
-        ));
     let client = reqwest::Client::new();
     let email_field = "email_nobody_has@drconopoima.com";
     let name_field = "Jane Doe";
@@ -74,15 +81,36 @@ async fn subscription_200_valid_form_data() {
         .expect(&format!("Failed POST request to {}", subscriptions_route));
     // Assert
     assert_eq!(200, response.status().as_u16());
-    let row_results: (String, String) = sqlx::query_as(
-        "SELECT email::text,name FROM newsletter.subscription WHERE email=$1",
+    // Arrange
+    // Get DB client and connection
+    let pg_connection_string: String = configuration.database.connection_string();
+    let (client, connection) = tokio_postgres::connect(
+        &pg_connection_string,        
+        tokio_postgres::NoTls,
     )
-    .bind(email_field)
-    .fetch_one(&mut pg_connection)
+    .await
+    .expect(&format!(
+        "ERROR: Failed to connect to Postgres at URL: {}",
+        &pg_connection_string
+    ));
+    // Spawn connection
+    tokio::spawn(async move {
+        if let Err(error) = connection.await {
+            panic!("Connection error with postgres at '{}', {}", &pg_connection_string, error);
+        }
+    });
+    // Act
+    let query_statement=format!("SELECT email,name FROM newsletter.subscription WHERE email='{}'",&email_field);
+    let row_results= client.query(
+        &query_statement,
+        &[]
+    )
     .await
     .expect("Failed to fetch saved subscription.");
-    assert_eq!(row_results.0, email_field);
-    assert_eq!(row_results.1, name_field);
+    let row_results: Vec<SubscriptionData>=row_results.into_iter().map(|row| SubscriptionData::from(row)).collect();
+    // Assert
+    assert_eq!(&row_results[0].email, &email_field);
+    assert_eq!(&row_results[0].name, &name_field);
 }
 
 #[actix_rt::test]
