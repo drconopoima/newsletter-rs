@@ -20,7 +20,7 @@ actix-web = { version="^4.0.0-rc.1" }
 serde = {version = "~1", features=["derive"]}
 tokio = { version = "~1", features = ["macros", "rt-multi-thread"] }
 config = { version="^0.11" }
-tokio-postgres = { version="^0.7" }
+tokio-postgres = { version="^0.7", features=["with-uuid-0_8"] }
 
 [dev-dependencies]
 actix = "^0.12"

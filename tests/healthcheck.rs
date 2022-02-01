@@ -18,21 +18,6 @@ struct Body {
     name: String,
 }
 
-#[derive(Debug)]
-pub struct SubscriptionData {
-  pub email: String,
-  pub name: String,
-}
-
-impl From<tokio_postgres::Row> for SubscriptionData {
-    fn from(row: tokio_postgres::Row) -> Self {
-      Self {
-        email: row.get("email"),
-        name: row.get("name"),
-      }
-    }
-  }
-
 #[actix_rt::test]
 async fn healthcheck_endpoint() {
     // Arrange
@@ -100,17 +85,17 @@ async fn subscription_200_valid_form_data() {
         }
     });
     // Act
-    let query_statement=format!("SELECT email,name FROM newsletter.subscription WHERE email='{}'",&email_field);
     let row_results= client.query(
-        &query_statement,
-        &[]
+        "SELECT email,name FROM newsletter.subscription WHERE email=$1::TEXT",
+        &[&email_field]
     )
     .await
     .expect("Failed to fetch saved subscription.");
-    let row_results: Vec<SubscriptionData>=row_results.into_iter().map(|row| SubscriptionData::from(row)).collect();
     // Assert
-    assert_eq!(&row_results[0].email, &email_field);
-    assert_eq!(&row_results[0].name, &name_field);
+    let retrieved_email: &str=row_results[0].get(&"email");
+    let retrieved_name: &str=row_results[0].get(&"name");
+    assert_eq!(&retrieved_email, &email_field);
+    assert_eq!(&retrieved_name, &name_field);
 }
 
 #[actix_rt::test]
