@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# set -x
+set -x
 set -Eeuo pipefail
 #
 ## Section Script Identification
@@ -111,7 +111,7 @@ if [[ -z "${SKIP_CONTAINER}" ]]; then
 fi
 # Ping until Postgres startup is validated.
 wait_time=1
-until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q' 2>/dev/null; do
+until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q'; do
     >&2 echo "[WARN] Postgres is still unavailable - waiting ${wait_time} second(s)..."
     sleep "${wait_time}"
     wait_time=$(( wait_time * 2 ))
