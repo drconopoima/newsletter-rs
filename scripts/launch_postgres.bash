@@ -6,7 +6,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.3.0"
+readonly SCRIPT_VERSION="0.4.0"
 
 ## Section Help
 function help {
@@ -23,6 +23,7 @@ function help {
     printf "\t POSTGRES_PORT: Bind Port for postgres. Default: '5432'\n"
     printf "\t POSTGRES_VERSION: Container version at registry. Default: 'latest'\n"
     printf "\t CONTAINER_REGISTRY: Container registry to pull from. Default: 'docker.io/library/postgres'\n"
+    printf "\t SKIP_CONTAINER: Allow skipping the container initialization step. Default: unset.\n"
 }
 readonly -f help
 
@@ -81,32 +82,33 @@ readonly DB_VERSION=${POSTGRES_VERSION:="latest"}
 readonly DB_REGISTRY=${CONTAINER_REGISTRY:="docker.io/library/postgres"}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
+# Allow to skip Container launch if a containerized Postgres database is already running
+if [[ -z "${SKIP_CONTAINER}" ]]; then
 ## Section Launch Container
-if [ ! "$(containertech ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
-    printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
-    printf "When ready, clean-up by running:\n"
-    printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
-    containertech run -d --rm --name ${CONTAINER_NAME} \
-    -e POSTGRES_USER=${DB_USER} \
-    -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-    -e POSTGRES_DB=${DB_NAME} \
-    -p "${DB_PORT}":5432 \
-    ${DB_REGISTRY}:${DB_VERSION} \
-    postgres -N 1000 1>/dev/null
-    # ^ Increased maximum number of connections for testing purposes
-else
-    printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
-    printf "\n"
-    containertech ps -a -f name=${CONTAINER_NAME}
-    printf "\n"
-    printf "Please clean-up by running:\n"
-    if [ "$(containertech ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
+    if [ ! "$(containertech ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
+        printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
+        printf "When ready, clean-up by running:\n"
         printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
+        containertech run -d --rm --name ${CONTAINER_NAME} \
+            -e POSTGRES_USER=${DB_USER} \
+            -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+            -e POSTGRES_DB=${DB_NAME} \
+            -p "${DB_PORT}":5432 \
+            ${DB_REGISTRY}:${DB_VERSION} \
+            postgres -N 1000 1>/dev/null
+            # ^ Increased maximum number of connections for testing purposes`
+    else
+        printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
+        printf "\n"
+        containertech ps -a -f name=${CONTAINER_NAME}
+        printf "\n"
+        printf "Please clean-up by running:\n"
+        if [ "$(containertech ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
+            printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
+        fi
+        printf "\t {podman/docker} container rm %s\n" "${CONTAINER_NAME}"
     fi
-    printf "\t {podman/docker} container rm %s\n" "${CONTAINER_NAME}"
-    
 fi
-
 # Ping until Postgres startup is validated.
 wait_time=1
 until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q' 2>/dev/null; do

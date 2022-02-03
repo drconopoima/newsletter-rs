@@ -47,7 +47,7 @@ jobs:
       - name: Migrate database
         run: |
           sudo apt-get install libpq-dev postgresql-client -y
-          ./scripts/launch_postgres.bash
+          SKIP_CONTAINER=true ./scripts/launch_postgres.bash
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
@@ -94,7 +94,7 @@ jobs:
       - name: Migrate database
         run: |
           sudo apt-get install libpq-dev postgresql-client -y
-          ./scripts/launch_postgres.bash
+          SKIP_CONTAINER=true ./scripts/launch_postgres.bash
       - name: Run clippy
         uses: actions-rs/clippy-check@v1
         with:
@@ -126,7 +126,7 @@ jobs:
       - name: Migrate database
         run: |
           sudo apt-get install libpq-dev postgresql-client -y
-          ./scripts/launch_postgres.bash
+          SKIP_CONTAINER=true ./scripts/launch_postgres.bash
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
