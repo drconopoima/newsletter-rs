@@ -69,31 +69,33 @@ async fn subscription_200_valid_form_data() {
     // Arrange
     // Get DB client and connection
     let pg_connection_string: String = configuration.database.connection_string();
-    let (client, connection) = tokio_postgres::connect(
-        &pg_connection_string,        
-        tokio_postgres::NoTls,
-    )
-    .await
-    .expect(&format!(
-        "ERROR: Failed to connect to Postgres at URL: {}",
-        &pg_connection_string
-    ));
+    let (client, connection) =
+        tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
+            .await
+            .expect(&format!(
+                "ERROR: Failed to connect to Postgres at URL: {}",
+                &pg_connection_string
+            ));
     // Spawn connection
     tokio::spawn(async move {
         if let Err(error) = connection.await {
-            panic!("Connection error with postgres at '{}', {}", &pg_connection_string, error);
+            panic!(
+                "Connection error with postgres at '{}', {}",
+                &pg_connection_string, error
+            );
         }
     });
     // Act
-    let row_results= client.query(
-        "SELECT email,name FROM newsletter.subscription WHERE email=$1::TEXT",
-        &[&email_field]
-    )
-    .await
-    .expect("Failed to fetch saved subscription.");
+    let row_results = client
+        .query(
+            "SELECT email,name FROM newsletter.subscription WHERE email=$1::TEXT",
+            &[&email_field],
+        )
+        .await
+        .expect("Failed to fetch saved subscription.");
     // Assert
-    let retrieved_email: &str=row_results[0].get(&"email");
-    let retrieved_name: &str=row_results[0].get(&"name");
+    let retrieved_email: &str = row_results[0].get(&"email");
+    let retrieved_name: &str = row_results[0].get(&"name");
     assert_eq!(&retrieved_email, &email_field);
     assert_eq!(&retrieved_name, &name_field);
 }
