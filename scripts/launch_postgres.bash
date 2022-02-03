@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-set -x
+# set -x
 set -Eeuo pipefail
 #
 ## Section Script Identification
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.4.0"
+readonly SCRIPT_VERSION="0.5.0"
 
 ## Section Help
 function help {
@@ -111,13 +111,15 @@ if [[ -z "${SKIP_CONTAINER}" ]]; then
 fi
 # Ping until Postgres startup is validated.
 wait_time=1
-until psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME} -c '\q'; do
+until psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}" -c '\q'; do
     >&2 echo "[WARN] Postgres is still unavailable - waiting ${wait_time} second(s)..."
     sleep "${wait_time}"
     wait_time=$(( wait_time * 2 ))
 done
-
 printf "[PASS] Postgres is running and ready\n"
+printf "Creating Database Newsletter if not available"
+echo "SELECT 'CREATE DATABASE mydb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" | psql -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}"
+printf "[PASS] Database 'newsletter' ready to use"
 
 cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
 find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script; do
