@@ -82,9 +82,11 @@ readonly DB_VERSION=${POSTGRES_VERSION:="latest"}
 readonly DB_REGISTRY=${CONTAINER_REGISTRY:="docker.io/library/postgres"}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
+set +u
 # Allow to skip Container launch if a containerized Postgres database is already running
 if [[ -z "${SKIP_CONTAINER}" ]]; then
-## Section Launch Container
+    set -u
+    ## Section Launch Container
     if [ ! "$(containertech ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
         printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
         printf "When ready, clean-up by running:\n"
@@ -92,7 +94,6 @@ if [[ -z "${SKIP_CONTAINER}" ]]; then
         containertech run -d --rm --name ${CONTAINER_NAME} \
             -e POSTGRES_USER=${DB_USER} \
             -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-            -e POSTGRES_DB=${DB_NAME} \
             -p "${DB_PORT}":5432 \
             ${DB_REGISTRY}:${DB_VERSION} \
             postgres -N 1000 1>/dev/null
@@ -117,9 +118,9 @@ until psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}" -c '\q'
     wait_time=$(( wait_time * 2 ))
 done
 printf "[PASS] Postgres is running and ready\n"
-printf "Creating Database Newsletter if not available"
-echo "SELECT 'CREATE DATABASE mydb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" | psql -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}"
-printf "[PASS] Database 'newsletter' ready to use"
+printf "Creating Database Newsletter if not available\n"
+echo "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" | psql -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}"
+printf "[PASS] Database '%s' ready to use\n" "${DB_NAME}"
 
 cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
 find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script; do
