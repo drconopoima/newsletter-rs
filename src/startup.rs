@@ -2,24 +2,29 @@ use crate::routes::{healthcheck,subscription};
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use std::net::TcpListener;
-use tokio_postgres::{connect,Client,Connection,Error,Socket};
-use tokio_postgres::tls::NoTlsStream;
+use tokio_postgres::{Client,Error};
 
-type DBCon = Connection<Socket,NoTlsStream>;
-
-pub async fn establish_pg_connection(connection_string:String) -> Result<(Client, DBCon),Error> {
+async fn establish_pg_connection(pg_connection_string:String) -> Result<Client,Error> {
     let (client, connection) =
-        connect(&connection_string, tokio_postgres::NoTls)
+        tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
             .await
             .expect(&format!(
                 "ERROR: Failed to connect to Postgres at URL: {}",
-                &connection_string
+                &pg_connection_string
             ));
-    Ok((client,connection))
+    // Spawn connection
+    tokio::spawn(async move {
+        if let Err(error) = connection.await {
+            panic!(
+                "Connection error with postgres at '{}', {}",
+                &pg_connection_string, error
+            );
+        }
+    });
+    Ok(client)
 }
 
-
-pub fn run(listener: TcpListener, connection_string: String) -> Result<Server, std::io::Error> {
+pub fn run(listener: TcpListener, pg_connection_string: String) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(move || {
         App::new()
             // Ensure App to be running correctly
@@ -27,7 +32,7 @@ pub fn run(listener: TcpListener, connection_string: String) -> Result<Server, s
             // Handle newsletter subscription requests
             .route("/subscription", web::post().to(subscription))
             // Register the Postgres connection as part of application state
-            .app_data(establish_pg_connection(connection_string.clone()))
+            .app_data(establish_pg_connection(pg_connection_string.clone()))
     })
     .listen(listener)?
     .run();
