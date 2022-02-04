@@ -1,12 +1,11 @@
 use crate::routes::{healthcheck, subscription};
-use actix_web::dev::Server;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, dev::Server, HttpServer, web};
 use std::net::TcpListener;
-use tokio_postgres::{Client, Error};
+use tokio_postgres::{Client,NoTls};
 
-async fn establish_pg_connection(pg_connection_string: String) -> Result<Client, Error> {
+async fn connect(pg_connection_string: String) -> Client {
     let (client, connection) =
-        tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
+        tokio_postgres::connect(&pg_connection_string, NoTls)
             .await
             .unwrap_or_else(|_| {
                 panic!(
@@ -23,18 +22,18 @@ async fn establish_pg_connection(pg_connection_string: String) -> Result<Client,
             );
         }
     });
-    Ok(client)
+    client
 }
 
 pub fn run(listener: TcpListener, pg_connection_string: String) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(move || {
         App::new()
+            // Register the Postgres connection as part of application state
+            .app_data(web::Data::new(connect(pg_connection_string.clone())))
             // Ensure App to be running correctly
             .route("/healthcheck", web::get().to(healthcheck))
             // Handle newsletter subscription requests
             .route("/subscription", web::post().to(subscription))
-            // Register the Postgres connection as part of application state
-            .app_data(establish_pg_connection(pg_connection_string.clone()))
     })
     .listen(listener)?
     .run();
