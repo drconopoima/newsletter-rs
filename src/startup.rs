@@ -1,10 +1,10 @@
-use crate::routes::{healthcheck,subscription};
+use crate::routes::{healthcheck, subscription};
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use std::net::TcpListener;
-use tokio_postgres::{Client,Error};
+use tokio_postgres::{Client, Error};
 
-async fn establish_pg_connection(pg_connection_string:String) -> Result<Client,Error> {
+async fn establish_pg_connection(pg_connection_string: String) -> Result<Client, Error> {
     let (client, connection) =
         tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
             .await
