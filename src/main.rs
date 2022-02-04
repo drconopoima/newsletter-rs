@@ -16,5 +16,5 @@ async fn main() -> std::io::Result<()> {
     // Raises if failed to bind address
     let listener = TcpListener::bind(bind_address)?;
     // Run server on TcpListener
-    run(listener)?.await
+    run(listener,configuration.database.connection_string())?.await
 }
