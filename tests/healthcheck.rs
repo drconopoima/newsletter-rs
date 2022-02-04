@@ -72,10 +72,10 @@ async fn subscription_200_valid_form_data() {
     let (client, connection) =
         tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
             .await
-            .expect(&format!(
-                "ERROR: Failed to connect to Postgres at URL: {}",
+            .unwrap_or_else(|_| {
+                panic!("ERROR: Failed to connect to Postgres at URL: {}",
                 &pg_connection_string
-            ));
+            )});
     // Spawn connection
     tokio::spawn(async move {
         if let Err(error) = connection.await {
