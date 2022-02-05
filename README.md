@@ -7,6 +7,10 @@ You'll need to install:
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Podman](https://podman.io/getting-started/installation) or [Docker](https://docs.docker.com/get-docker/)
+- [PostgreSQL CLI client](https://www.postgresql.org/download/)
+- Optionally for loadtesting: [k6](https://k6.io/docs/getting-started/installation/)
+
+### Install Podman
 
 On Ubuntu/Debian
 
@@ -26,7 +30,7 @@ On Max OS X
 brew install podman
 ```
 
-- [PostgreSQL CLI client](https://www.postgresql.org/download/)
+### Install PostgreSQL client
 
 On Ubuntu/Debian
 
@@ -47,27 +51,27 @@ brew install libpq
 echo 'export PATH="/usr/local/opt/libpq/bin:$PATH"' >> ~/.zshrc
 ```
 
+## Launch
+
 Launch a (migrated) Postgres database via a container engine (default Podman, optionally Docker):
 
 ```bash
 ./scripts/launch_postgres.bash
 ```
 
-## Launch
-
-Using `cargo`:
+Run application using `cargo`:
 
 ```bash
 cargo run
 ```
 
-Test correct initialization by using /healthcheck endpoint
+Test correct initialization by using `/healthcheck` endpoint
 
 ```bash
 curl -s -w'%{http_code}' http://127.0.0.1:8000/healthcheck
 ```
 
-Send subscription entries by using the /subscription endpoint
+Send subscription entries by using the `/subscription` endpoint
 
 ```bash
 curl -s -w'%{http_code}' "http://127.0.0.1:8000/subscription" -d "email=email%40drconopoima.com&name=Jane%20Doe"
@@ -87,4 +91,14 @@ Using `cargo`:
 
 ```bash
 cargo test 
+```
+
+## How to loadtest
+
+Using K6
+
+```bash
+cargo run --release
+k6 run --vus 200 ./testdata/k6_get_healthcheck.js --duration 60s
+k6 run --vus 200 ./testdata/k6_post_subscription.js --duration 60s
 ```
