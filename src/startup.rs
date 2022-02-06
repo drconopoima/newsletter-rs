@@ -8,8 +8,9 @@ use std::sync::Arc;
 
 pub fn run(
     listener: TcpListener,
-    postgres_connection: Arc<NoTlsPostgresConnection>,
+    postgres_connection: NoTlsPostgresConnection,
 ) -> Result<Server, std::io::Error> {
+    let postgres_connection = Arc::new(postgres_connection);
     let server = HttpServer::new(move || {
         App::new()
             // Ensure App to be running correctly

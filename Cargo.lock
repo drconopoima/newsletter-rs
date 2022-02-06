@@ -1019,6 +1019,7 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "config",
+ "regex",
  "reqwest",
  "serde 1.0.135",
  "serde_urlencoded",

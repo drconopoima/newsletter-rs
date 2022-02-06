@@ -18,12 +18,11 @@ pub async fn connect_postgres(
             )
         });
     // Spawn connection
-    let join_handle = spawn(async move {
+    spawn(async move {
         if let Err(error) = connection.await {
             panic!("Connection error with postgres {}", error);
         }
     });
-    join_handle.await?;
     Ok(NoTlsPostgresConnection {
         client,
         postgres_connection_string,

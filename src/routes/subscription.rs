@@ -2,7 +2,7 @@ use crate::postgres::NoTlsPostgresConnection;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use std::sync::Arc;
 use uuid::Uuid;
-
+use regex::Regex;
 #[derive(serde::Deserialize)]
 pub struct SubscriptionFormData {
     email: String,
@@ -13,11 +13,12 @@ pub async fn subscription(
     request: HttpRequest,
     form: web::Form<SubscriptionFormData>,
 ) -> impl Responder {
-    let generated_uuid: String = format!("{}", Uuid::new_v4());
-    println!("email: {}, name: {}", form.email, form.name);
+    let generated_uuid: Uuid = Uuid::new_v4();
     let connection: &Arc<NoTlsPostgresConnection> =
         request.app_data::<Arc<NoTlsPostgresConnection>>().unwrap();
-    connection
+    let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
+    if email_format.is_match(&form.email) {
+        connection
         .client
         .query(
             r#"
@@ -28,5 +29,8 @@ pub async fn subscription(
         )
         .await
         .expect("Failed to insert requested subscription.");
-    HttpResponse::Ok().finish()
+        HttpResponse::Ok().finish()
+    } else {
+        HttpResponse::BadRequest().finish()
+    }    
 }
