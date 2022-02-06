@@ -1,5 +1,6 @@
-use actix_web::{HttpResponse, web::{self, Data} };
-use tokio_postgres::Client;
+use crate::postgres::NoTlsPostgresConnection;
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -8,18 +9,22 @@ pub struct SubscriptionFormData {
     name: String,
 }
 
-pub async fn subscription(client: Data<Client>,form: web::Form<SubscriptionFormData>) -> HttpResponse {
-    let generated_uuid: String = format!("{}",Uuid::new_v4());
+pub async fn subscription(
+    request: HttpRequest,
+    form: web::Form<SubscriptionFormData>,
+) -> impl Responder {
+    let generated_uuid: String = format!("{}", Uuid::new_v4());
     println!("email: {}, name: {}", form.email, form.name);
-    let client: &Client = client.get_ref();
-    println!("{:?}",client);
-    client
+    let connection: &Arc<NoTlsPostgresConnection> =
+        request.app_data::<Arc<NoTlsPostgresConnection>>().unwrap();
+    connection
+        .client
         .query(
-        r#"
-                        INSERT INTO subscriptions (id, email, name)
-                        VALUES ($1, $2, $3)
-                    "#,
-            &[&generated_uuid,&form.email, &form.name],
+            r#"
+                    INSERT INTO newsletter.subscription (id, email, name)
+                    VALUES ($1, $2, $3)
+                "#,
+            &[&generated_uuid, &form.email, &form.name],
         )
         .await
         .expect("Failed to insert requested subscription.");
