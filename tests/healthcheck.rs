@@ -1,4 +1,7 @@
-use newsletter_rs::{configuration::get_configuration,postgres::{NoTlsPostgresConnection,connect_postgres}};
+use newsletter_rs::{
+    configuration::get_configuration,
+    postgres::{connect_postgres, NoTlsPostgresConnection},
+};
 use std::net::TcpListener;
 
 async fn prepare_postgres_connection() -> NoTlsPostgresConnection {
@@ -7,8 +10,13 @@ async fn prepare_postgres_connection() -> NoTlsPostgresConnection {
     let port = "5432";
     let local_addr = "127.0.0.1";
     let database = "newsletter";
-    let postgres_connection_string = format!("postgres://{}:{}@{}:{}/{}", user, password, local_addr, port, database);
-    connect_postgres(postgres_connection_string.to_string()).await.unwrap()
+    let postgres_connection_string = format!(
+        "postgres://{}:{}@{}:{}/{}",
+        user, password, local_addr, port, database
+    );
+    connect_postgres(postgres_connection_string.to_string())
+        .await
+        .unwrap()
 }
 
 // Launch an instance for our HTTP server in the background
