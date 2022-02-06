@@ -1,17 +1,27 @@
-use newsletter_rs::configuration::get_configuration;
+use newsletter_rs::{configuration::get_configuration,postgres::{NoTlsPostgresConnection,connect_postgres}};
 use std::net::TcpListener;
 
+async fn prepare_postgres_connection() -> NoTlsPostgresConnection {
+    let user = "postgres";
+    let password = "password";
+    let port = "5432";
+    let local_addr = "127.0.0.1";
+    let database = "newsletter";
+    let postgres_connection_string = format!("postgres://{}:{}@{}:{}/{}", user, password, local_addr, port, database);
+    connect_postgres(postgres_connection_string.to_string()).await.unwrap()
+}
+
 // Launch an instance for our HTTP server in the background
-fn launch_http_server() -> String {
+fn launch_http_server(postgres_connection: NoTlsPostgresConnection) -> String {
     let local_addr = "127.0.0.1";
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let pg_connection_string = format!("http://{}:{}", local_addr, port);
-    let server = newsletter_rs::startup::run(listener, pg_connection_string.to_string())
+    let connection_string = format!("http://{}:{}", local_addr, port);
+    let server = newsletter_rs::startup::run(listener, postgres_connection)
         .expect("Failed to listen on address");
     let _ = tokio::spawn(server);
-    pg_connection_string
+    connection_string
 }
 
 #[derive(serde::Serialize)]
@@ -23,7 +33,8 @@ struct Body {
 #[actix_rt::test]
 async fn healthcheck_endpoint() {
     // Arrange
-    let server_address = launch_http_server();
+    let postgres_connection = prepare_postgres_connection().await;
+    let server_address = launch_http_server(postgres_connection);
     let client = reqwest::Client::new();
     // Act
     // Client library makes HTTP requests against server
@@ -43,7 +54,8 @@ async fn healthcheck_endpoint() {
 #[actix_rt::test]
 async fn subscription_200_valid_form_data() {
     // Arrange
-    let server_address = launch_http_server();
+    let postgres_connection = prepare_postgres_connection().await;
+    let server_address = launch_http_server(postgres_connection);
     let config_file: &str = "configuration";
     let configuration = get_configuration(config_file).expect(&format!(
         "ERROR: Failed to read configuration file: '{}'",
@@ -107,7 +119,8 @@ async fn subscription_200_valid_form_data() {
 #[actix_rt::test]
 async fn subscription_400_incomplete_form_data() {
     // Arrange
-    let server_address = launch_http_server();
+    let postgres_connection = prepare_postgres_connection().await;
+    let server_address = launch_http_server(postgres_connection);
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=Jane%20Doe", "missing email"),
