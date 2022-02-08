@@ -6,7 +6,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.5.0"
+readonly SCRIPT_VERSION="0.6.0"
 
 ## Section Help
 function help {
@@ -71,7 +71,7 @@ export containertech
 # Check if a custom user has been set, otherwise default to 'postgres'
 readonly DB_USER=${POSTGRES_USER:="postgres"}
 # Check if a custom password has been set, otherwise default to 'password'
-readonly DB_PASSWORD=${POSTGRES_PASSWORD:="password"}
+readonly POSTGRES_PASSWORD=${POSTGRES_PASSWORD:="password"}
 # Check if a custom database name has been set, otherwise default to 'newsletter'
 readonly DB_NAME=${POSTGRES_DB:="newsletter"}
 # Check if a custom port has been set, otherwise default to '5432'
@@ -91,17 +91,17 @@ if [[ -z "${SKIP_CONTAINER}" ]]; then
         printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
         printf "When ready, clean-up by running:\n"
         printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
-        containertech run -d --rm --name ${CONTAINER_NAME} \
-            -e POSTGRES_USER=${DB_USER} \
-            -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+        containertech run -d --rm --name "${CONTAINER_NAME}" \
+            -e "POSTGRES_USER=${DB_USER}" \
+            -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
             -p "${DB_PORT}":5432 \
-            ${DB_REGISTRY}:${DB_VERSION} \
+            "${DB_REGISTRY}:${DB_VERSION}" \
             postgres -N 1000 1>/dev/null
             # ^ Increased maximum number of connections for testing purposes`
     else
         printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
         printf "\n"
-        containertech ps -a -f name=${CONTAINER_NAME}
+        containertech ps -a -f name="${CONTAINER_NAME}"
         printf "\n"
         printf "Please clean-up by running:\n"
         if [ "$(containertech ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
@@ -110,16 +110,22 @@ if [[ -z "${SKIP_CONTAINER}" ]]; then
         printf "\t {podman/docker} container rm %s\n" "${CONTAINER_NAME}"
     fi
 fi
+# Create temporary password file
+readonly PGPASSFILE='/tmp/launch_postgres_pgpass'
+export PGPASSFILE
+echo -n "localhost:${DB_PORT}:*:${DB_USER}:${POSTGRES_PASSWORD}" | tee "${PGPASSFILE}" >/dev/null
+chmod 600 "${PGPASSFILE}"
+trap 'rm '"${PGPASSFILE}"'' EXIT
 # Ping until Postgres startup is validated.
 wait_time=1
-until psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}" -c '\q'; do
+until psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -v PGPASSFILE="${PGPASSFILE}" -c '\q'; do
     >&2 echo "[WARN] Postgres is still unavailable - waiting ${wait_time} second(s)..."
     sleep "${wait_time}"
     wait_time=$(( wait_time * 2 ))
 done
 printf "[PASS] Postgres is running and ready\n"
 printf "Creating Database Newsletter if not available\n"
-echo "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" | psql -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}"
+echo "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" |  psql -v ON_ERROR_STOP=1 -h localhost -p "${DB_PORT}" -U "${DB_USER}" -v PGPASSFILE="${PGPASSFILE}"
 printf "[PASS] Database '%s' ready to use\n" "${DB_NAME}"
 
 cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
@@ -130,7 +136,7 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
         md5="$(md5 "${script}")";
     fi
     sqlfilename=$(basename "${script}");
-    if [[ "$(psql -t "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" 2>/dev/null | awk '{ print $1 }')" -eq 1 ]]; then
+    if [[ "$( psql -t -h localhost -p \"${DB_PORT}\" -U \"${DB_USER}\" -d \"${DB_NAME}\" -v PGPASSFILE="${PGPASSFILE}" -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" 2>/dev/null | awk '{ print $1 }')" -eq 1 ]]; then
         printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
         continue
     fi
@@ -138,7 +144,7 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
     if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
         shopt -s lastpipe
         set +Ee
-        sed 's/^COMMIT;/ROLLBACK;/g' "${script}" | psql -v ON_ERROR_STOP=1 --quiet "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" 2>&1 | rollbackoutput=$(</dev/stdin)
+        sed 's/^COMMIT;/ROLLBACK;/g' "${script}" |  psql -v ON_ERROR_STOP=1 --quiet -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" 2>&1 | rollbackoutput=$(</dev/stdin)
         returncode="$?"
         shopt -u lastpipe
         set -Ee
@@ -149,14 +155,14 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
             echo "${rollbackoutput}"
             exit 4
         fi
-        psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}" && \
-        psql "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
+         psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" --file="${script}" && \
+         psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
         printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
     else
         printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
         shopt -s lastpipe
         set +Ee
-        psql -v ON_ERROR_STOP=1 "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" --file="${script}"  2>&1 | rollbackoutput=$(</dev/stdin)
+         psql -v ON_ERROR_STOP=1 -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" --file="${script}"  2>&1 | rollbackoutput=$(</dev/stdin)
         returncode="$?"
         shopt -u lastpipe
         set -Ee
