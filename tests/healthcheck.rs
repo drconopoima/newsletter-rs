@@ -1,46 +1,74 @@
+use deadpool_postgres::Pool;
 use newsletter_rs::{configuration::get_configuration, postgres::generate_connection_pool};
+use std::fs::{read_dir, File};
+use std::io::{BufReader, Read};
 use std::net::TcpListener;
-use std::sync::Mutex;
-#[macro_use(lazy_static)]
-extern crate lazy_static;
+use uuid::Uuid;
 
-struct MemoizeServer {
-    server_connection_string: Option<String>,
-}
-static mut MEMOIZE_SERVER: MemoizeServer = MemoizeServer {
-    server_connection_string: None,
-};
-
-lazy_static! {
-    static ref LAUNCH_SERVER_LOCK: Mutex<i32> = Mutex::new(0i32);
+pub struct ServerPostgres {
+    pub address: String,
+    pub postgres_pool: Pool,
 }
 
 // Launch an instance for our HTTP server in the background
-fn launch_http_server() -> String {
-    let guard = LAUNCH_SERVER_LOCK.lock().unwrap();
-    let mut memoize_server_clone = unsafe { &mut MEMOIZE_SERVER };
-    if memoize_server_clone.server_connection_string.is_none() {
-        let local_addr = "127.0.0.1";
-        let address: (&str, u16) = (local_addr, 0);
-        let listener = TcpListener::bind(address).expect("Failed to bind random port");
-        let port = listener.local_addr().unwrap().port();
-        let postgres_pool = generate_connection_pool(
-            "postgres://postgres:password@127.0.0.1:5432/newsletter".to_string(),
-        );
-        let server = newsletter_rs::startup::run(listener, postgres_pool)
-            .expect("Failed to listen on address");
-        let _ = tokio::spawn(server);
-        memoize_server_clone.server_connection_string =
-            Some(format!("http://{}:{}", local_addr, port));
+async fn launch_http_server() -> ServerPostgres {
+    let config_file: &str = "configuration";
+    let mut configuration = get_configuration(config_file).unwrap_or_else(|error| {
+        panic!(
+            "ERROR: Failed to read configuration file '{}': {}",
+            &config_file, error
+        )
+    });
+    configuration.database.database = None;
+    let isolated_database_name = Uuid::new_v4().to_string();
+    let postgres_connection_string = configuration.database.connection_string();
+    let postgres_pool = generate_connection_pool(postgres_connection_string.to_string());
+    let postgres_client = postgres_pool
+        .get()
+        .await
+        .expect("Failed to generate client connection to postgres from pool");
+    let uuid_without_hyphens = isolated_database_name.replace("-","");
+    let create_database_query = format!("CREATE DATABASE \"{}\"", uuid_without_hyphens.as_str());
+    postgres_client.simple_query(&create_database_query).await.expect("Failed to create database");
+    configuration.database.database = Some(uuid_without_hyphens.to_string());
+    let postgres_connection_string = configuration.database.connection_string();
+    let postgres_pool = generate_connection_pool(postgres_connection_string.to_string());
+    let postgres_client = postgres_pool
+        .get()
+        .await
+        .expect("Failed to generate client connection to postgres from pool");
+    let mut path_entries: Vec<_> = read_dir("./migrations")
+        .expect("Failed to read database migrations directory")
+        .map(|r| r.unwrap())
+        .collect();
+    path_entries.sort_by_key(|dir| dir.path());
+    let mut migration_script_paths: Vec<String> = Vec::new();
+    for path in path_entries {
+        migration_script_paths.push(path.path().display().to_string());
     }
-    std::mem::drop(guard);
-    String::from(
-        memoize_server_clone
-            .server_connection_string
-            .as_ref()
-            .unwrap()
-            .to_string(),
-    )
+    for migration_script_path in migration_script_paths {
+        let migration_file = File::open(&migration_script_path).unwrap();
+        let mut reader = BufReader::new(migration_file);
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer).unwrap_or_else(|error| {
+            panic!("Failed to read contents of file {}: {}", &migration_script_path, error)
+        });
+        let migration_file_contents = String::from_utf8_lossy(&buffer).to_string();
+        postgres_client.simple_query(&migration_file_contents).await.unwrap_or_else(|error|{
+            panic!("Failed to perform query migration of file {}: {}", &migration_script_path, error)
+        });
+    }
+    let local_addr = "127.0.0.1";
+    let address: (&str, u16) = (local_addr, 0);
+    let listener = TcpListener::bind(address).expect("Failed to bind random port");
+    let port = listener.local_addr().unwrap().port();
+    let server = newsletter_rs::startup::run(listener, postgres_pool.clone())
+        .expect("Failed to listen on address");
+    let _ = tokio::spawn(server);
+    ServerPostgres {
+        address: format!("http://{}:{}", local_addr, port),
+        postgres_pool,
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -52,11 +80,11 @@ struct Body {
 #[tokio::test]
 async fn healthcheck_endpoint() {
     // Arrange
-    let server_address = launch_http_server();
+    let server_postgres = launch_http_server().await;
     let client = reqwest::Client::new();
     // Act
     // Client library makes HTTP requests against server
-    let healthcheck_route = &format!("{}/healthcheck", server_address);
+    let healthcheck_route = &format!("{}/healthcheck", server_postgres.address);
     let response = client
         .get(healthcheck_route)
         .send()
@@ -72,12 +100,7 @@ async fn healthcheck_endpoint() {
 #[tokio::test]
 async fn subscription_200_valid_form_data() {
     // Arrange
-    let server_address = launch_http_server();
-    let config_file: &str = "configuration";
-    let configuration = get_configuration(config_file).expect(&format!(
-        "ERROR: Failed to read configuration file: '{}'",
-        &config_file
-    ));
+    let server_postgres = launch_http_server().await;
     let client = reqwest::Client::new();
     let email_field = "email_nobody_has@drconopoima.com";
     let name_field = "Jane Doe";
@@ -86,7 +109,7 @@ async fn subscription_200_valid_form_data() {
         name: name_field.to_string(),
     };
     let body_encoded = serde_urlencoded::to_string(&body).unwrap();
-    let subscriptions_route = &format!("{}/subscription", server_address);
+    let subscriptions_route = &format!("{}/subscription", server_postgres.address);
     // Act
     let response = client
         .post(subscriptions_route)
@@ -97,28 +120,13 @@ async fn subscription_200_valid_form_data() {
         .expect(&format!("Failed POST request to {}", subscriptions_route));
     // Assert
     assert_eq!(200, response.status().as_u16());
-    // Arrange
-    // Get DB client and connection
-    let pg_connection_string: String = configuration.database.connection_string();
-    let (client, connection) =
-        tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
-            .await
-            .unwrap_or_else(|_| {
-                panic!(
-                    "ERROR: Failed to connect to Postgres at URL: {}",
-                    &pg_connection_string
-                )
-            });
-    // Spawn connection
-    tokio::spawn(async move {
-        if let Err(error) = connection.await {
-            panic!(
-                "Connection error with postgres at '{}', {}",
-                &pg_connection_string, error
-            );
-        }
-    });
     // Act
+
+    let client = server_postgres
+        .postgres_pool
+        .get()
+        .await
+        .expect("Failed to generate client connection to postgres from pool");
     let row_results = client
         .query(
             "SELECT email,name FROM newsletter.subscription WHERE email=$1::TEXT",
@@ -136,14 +144,14 @@ async fn subscription_200_valid_form_data() {
 #[tokio::test]
 async fn subscription_400_incomplete_form_data() {
     // Arrange
-    let server_address = launch_http_server();
+    let server_postgres = launch_http_server().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=Jane%20Doe", "missing email"),
         ("email=email_nobody_has%40drconopoima.com", "missing name"),
         ("", "missing email and name"),
     ];
-    let subscriptions_route = &format!("{}/subscription", server_address);
+    let subscriptions_route = &format!("{}/subscription", server_postgres.address);
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client

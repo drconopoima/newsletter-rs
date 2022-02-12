@@ -11,15 +11,26 @@ pub struct DatabaseSettings {
     pub host: String,
     pub username: String,
     pub password: String,
-    pub database: String,
+    pub database: Option<String>,
 }
 
 impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
-        format!(
-            "postgresql://{}:{}@{}:{}/{}",
-            self.username, self.password, self.host, self.port, self.database
-        )
+        if self.database.is_none() {
+            format!(
+                "postgresql://{}:{}@{}:{}",
+                self.username, self.password, self.host, self.port
+            )
+        } else {
+            format!(
+                "postgresql://{}:{}@{}:{}/{}",
+                self.username,
+                self.password,
+                self.host,
+                self.port,
+                self.database.as_ref().unwrap()
+            )
+        }
     }
 }
 // Read top-level configuration file with compatible extension YAML,JSON...
