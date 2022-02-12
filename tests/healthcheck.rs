@@ -27,9 +27,12 @@ async fn launch_http_server() -> ServerPostgres {
         .get()
         .await
         .expect("Failed to generate client connection to postgres from pool");
-    let uuid_without_hyphens = isolated_database_name.replace("-","");
+    let uuid_without_hyphens = isolated_database_name.replace("-", "");
     let create_database_query = format!("CREATE DATABASE \"{}\"", uuid_without_hyphens.as_str());
-    postgres_client.simple_query(&create_database_query).await.expect("Failed to create database");
+    postgres_client
+        .simple_query(&create_database_query)
+        .await
+        .expect("Failed to create database");
     configuration.database.database = Some(uuid_without_hyphens.to_string());
     let postgres_connection_string = configuration.database.connection_string();
     let postgres_pool = generate_connection_pool(postgres_connection_string.to_string());
@@ -51,12 +54,21 @@ async fn launch_http_server() -> ServerPostgres {
         let mut reader = BufReader::new(migration_file);
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap_or_else(|error| {
-            panic!("Failed to read contents of file {}: {}", &migration_script_path, error)
+            panic!(
+                "Failed to read contents of file {}: {}",
+                &migration_script_path, error
+            )
         });
         let migration_file_contents = String::from_utf8_lossy(&buffer).to_string();
-        postgres_client.simple_query(&migration_file_contents).await.unwrap_or_else(|error|{
-            panic!("Failed to perform query migration of file {}: {}", &migration_script_path, error)
-        });
+        postgres_client
+            .simple_query(&migration_file_contents)
+            .await
+            .unwrap_or_else(|error| {
+                panic!(
+                    "Failed to perform query migration of file {}: {}",
+                    &migration_script_path, error
+                )
+            });
     }
     let local_addr = "127.0.0.1";
     let address: (&str, u16) = (local_addr, 0);
