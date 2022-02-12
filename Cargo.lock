@@ -995,6 +995,7 @@ dependencies = [
  "actix-web",
  "config",
  "deadpool-postgres",
+ "lazy_static",
  "regex",
  "reqwest",
  "serde 1.0.135",

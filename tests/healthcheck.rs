@@ -1,35 +1,46 @@
-use newsletter_rs::{
-    configuration::get_configuration,
-    postgres::{connect_postgres, NoTlsPostgresConnection},
-};
+use newsletter_rs::{configuration::get_configuration, postgres::generate_connection_pool};
 use std::net::TcpListener;
+use std::sync::Mutex;
+#[macro_use(lazy_static)]
+extern crate lazy_static;
 
-async fn prepare_postgres_connection() -> NoTlsPostgresConnection {
-    let user = "postgres";
-    let password = "password";
-    let port = "5432";
-    let local_addr = "127.0.0.1";
-    let database = "newsletter";
-    let postgres_connection_string = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        user, password, local_addr, port, database
-    );
-    connect_postgres(postgres_connection_string.to_string())
-        .await
-        .unwrap()
+struct MemoizeServer {
+    server_connection_string: Option<String>,
+}
+static mut MEMOIZE_SERVER: MemoizeServer = MemoizeServer {
+    server_connection_string: None,
+};
+
+lazy_static! {
+    static ref LAUNCH_SERVER_LOCK: Mutex<i32> = Mutex::new(0i32);
 }
 
 // Launch an instance for our HTTP server in the background
-fn launch_http_server(postgres_connection: NoTlsPostgresConnection) -> String {
-    let local_addr = "127.0.0.1";
-    let address: (&str, u16) = (local_addr, 0);
-    let listener = TcpListener::bind(address).expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port();
-    let connection_string = format!("http://{}:{}", local_addr, port);
-    let server = newsletter_rs::startup::run(listener, postgres_connection)
-        .expect("Failed to listen on address");
-    let _ = tokio::spawn(server);
-    connection_string
+fn launch_http_server() -> String {
+    let guard = LAUNCH_SERVER_LOCK.lock().unwrap();
+    let mut memoize_server_clone = unsafe { &mut MEMOIZE_SERVER };
+    if let None = memoize_server_clone.server_connection_string {
+        let local_addr = "127.0.0.1";
+        let address: (&str, u16) = (local_addr, 0);
+        let listener = TcpListener::bind(address).expect("Failed to bind random port");
+        let port = listener.local_addr().unwrap().port();
+        let postgres_pool = generate_connection_pool(
+            "postgres://postgres:password@127.0.0.1:5432/newsletter".to_string(),
+        );
+        let server = newsletter_rs::startup::run(listener, postgres_pool)
+            .expect("Failed to listen on address");
+        let _ = tokio::spawn(server);
+        memoize_server_clone.server_connection_string =
+            Some(format!("http://{}:{}", local_addr, port));
+    }
+    std::mem::drop(guard);
+    String::from(
+        memoize_server_clone
+            .server_connection_string
+            .as_ref()
+            .unwrap()
+            .to_string(),
+    )
 }
 
 #[derive(serde::Serialize)]
@@ -38,11 +49,10 @@ struct Body {
     name: String,
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn healthcheck_endpoint() {
     // Arrange
-    let postgres_connection = prepare_postgres_connection().await;
-    let server_address = launch_http_server(postgres_connection);
+    let server_address = launch_http_server();
     let client = reqwest::Client::new();
     // Act
     // Client library makes HTTP requests against server
@@ -59,11 +69,10 @@ async fn healthcheck_endpoint() {
     assert_eq!(Some(0), response.content_length());
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn subscription_200_valid_form_data() {
     // Arrange
-    let postgres_connection = prepare_postgres_connection().await;
-    let server_address = launch_http_server(postgres_connection);
+    let server_address = launch_http_server();
     let config_file: &str = "configuration";
     let configuration = get_configuration(config_file).expect(&format!(
         "ERROR: Failed to read configuration file: '{}'",
@@ -124,11 +133,10 @@ async fn subscription_200_valid_form_data() {
     assert_eq!(&retrieved_name, &name_field);
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn subscription_400_incomplete_form_data() {
     // Arrange
-    let postgres_connection = prepare_postgres_connection().await;
-    let server_address = launch_http_server(postgres_connection);
+    let server_address = launch_http_server();
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=Jane%20Doe", "missing email"),
