@@ -1,16 +1,11 @@
-use crate::{
-    postgres::NoTlsPostgresConnection,
-    routes::{healthcheck, subscription},
-};
+use crate::routes::{healthcheck, subscription};
 use actix_web::{dev::Server, web, App, HttpServer};
+use deadpool_postgres::Pool;
 use std::net::TcpListener;
 use std::sync::Arc;
 
-pub fn run(
-    listener: TcpListener,
-    postgres_connection: NoTlsPostgresConnection,
-) -> Result<Server, std::io::Error> {
-    let postgres_connection = Arc::new(postgres_connection);
+pub fn run(listener: TcpListener, postgres_pool: Pool) -> Result<Server, std::io::Error> {
+    let postgres_pool = Arc::new(postgres_pool);
     let server = HttpServer::new(move || {
         App::new()
             // Ensure App to be running correctly
@@ -18,7 +13,7 @@ pub fn run(
             // Handle newsletter subscription requests
             .route("/subscription", web::post().to(subscription))
             // Register the Postgres connection as part of application state
-            .app_data(postgres_connection.clone())
+            .app_data(postgres_pool.clone())
     })
     .listen(listener)?
     .run();

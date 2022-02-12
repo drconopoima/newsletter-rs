@@ -1,30 +1,21 @@
-use tokio::task::{spawn, JoinError};
-use tokio_postgres::{connect, Client, NoTls};
-/// Postgres interface
-pub struct NoTlsPostgresConnection {
-    pub client: Client,
-    pub postgres_connection_string: String,
+use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
+use std::str::FromStr;
+use tokio_postgres::NoTls;
+
+pub fn generate_connection_pool(postgres_connection_string: String) -> Pool {
+    let postgres_configuration =
+        tokio_postgres::Config::from_str(&postgres_connection_string).unwrap();
+    let deadpool_manager_config = ManagerConfig {
+        recycling_method: RecyclingMethod::Verified,
+    };
+    let deadpool_manager =
+        Manager::from_config(postgres_configuration, NoTls, deadpool_manager_config);
+    Pool::builder(deadpool_manager)
+        .max_size(16)
+        .build()
+        .unwrap()
 }
 
-pub async fn connect_postgres(
-    postgres_connection_string: String,
-) -> Result<NoTlsPostgresConnection, JoinError> {
-    let (client, connection) = connect(&postgres_connection_string, NoTls)
-        .await
-        .unwrap_or_else(|error| {
-            panic!(
-                "ERROR: Failed to connect to Postgres at URL '{}', {}",
-                &postgres_connection_string, error
-            )
-        });
-    // Spawn connection
-    spawn(async move {
-        if let Err(error) = connection.await {
-            panic!("Connection error with postgres {}", error);
-        }
-    });
-    Ok(NoTlsPostgresConnection {
-        client,
-        postgres_connection_string,
-    })
+pub async fn get_client(pool: Pool) -> Object {
+    pool.get().await.unwrap()
 }
