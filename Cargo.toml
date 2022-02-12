@@ -16,15 +16,17 @@ name="newsletter-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = { version="^4.0.0-rc.2" }
+actix-web = { version="^4.0.0-rc.3" }
 serde = {version = "~1", features=["derive"]}
 tokio = { version = "~1", features = ["macros", "rt-multi-thread"] }
 config = { version="^0.11" }
 tokio-postgres = { version="^0.7", features=["with-uuid-0_8"] }
+uuid = { version = "^0.8", features = ["v4"] }
+regex = { version = "^1.5.4" }
+deadpool-postgres = { version = "0.10.1" }
 
 [dev-dependencies]
-actix = "^0.12"
-actix-rt = "~2"
 reqwest = "^0.11"
 serde_urlencoded = "^0.7"
+lazy_static="1.4.0"
 

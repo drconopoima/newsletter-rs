@@ -1,15 +1,46 @@
-use newsletter_rs::configuration::get_configuration;
+use newsletter_rs::{configuration::get_configuration, postgres::generate_connection_pool};
 use std::net::TcpListener;
+use std::sync::Mutex;
+#[macro_use(lazy_static)]
+extern crate lazy_static;
+
+struct MemoizeServer {
+    server_connection_string: Option<String>,
+}
+static mut MEMOIZE_SERVER: MemoizeServer = MemoizeServer {
+    server_connection_string: None,
+};
+
+lazy_static! {
+    static ref LAUNCH_SERVER_LOCK: Mutex<i32> = Mutex::new(0i32);
+}
 
 // Launch an instance for our HTTP server in the background
 fn launch_http_server() -> String {
-    let local_addr = "127.0.0.1";
-    let address: (&str, u16) = (local_addr, 0);
-    let listener = TcpListener::bind(address).expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port();
-    let server = newsletter_rs::startup::run(listener).expect("Failed to listen on address");
-    let _ = tokio::spawn(server);
-    format!("http://{}:{}", local_addr, port)
+    let guard = LAUNCH_SERVER_LOCK.lock().unwrap();
+    let mut memoize_server_clone = unsafe { &mut MEMOIZE_SERVER };
+    if let None = memoize_server_clone.server_connection_string {
+        let local_addr = "127.0.0.1";
+        let address: (&str, u16) = (local_addr, 0);
+        let listener = TcpListener::bind(address).expect("Failed to bind random port");
+        let port = listener.local_addr().unwrap().port();
+        let postgres_pool = generate_connection_pool(
+            "postgres://postgres:password@127.0.0.1:5432/newsletter".to_string(),
+        );
+        let server = newsletter_rs::startup::run(listener, postgres_pool)
+            .expect("Failed to listen on address");
+        let _ = tokio::spawn(server);
+        memoize_server_clone.server_connection_string =
+            Some(format!("http://{}:{}", local_addr, port));
+    }
+    std::mem::drop(guard);
+    String::from(
+        memoize_server_clone
+            .server_connection_string
+            .as_ref()
+            .unwrap()
+            .to_string(),
+    )
 }
 
 #[derive(serde::Serialize)]
@@ -18,7 +49,7 @@ struct Body {
     name: String,
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn healthcheck_endpoint() {
     // Arrange
     let server_address = launch_http_server();
@@ -38,7 +69,7 @@ async fn healthcheck_endpoint() {
     assert_eq!(Some(0), response.content_length());
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn subscription_200_valid_form_data() {
     // Arrange
     let server_address = launch_http_server();
@@ -72,10 +103,12 @@ async fn subscription_200_valid_form_data() {
     let (client, connection) =
         tokio_postgres::connect(&pg_connection_string, tokio_postgres::NoTls)
             .await
-            .expect(&format!(
-                "ERROR: Failed to connect to Postgres at URL: {}",
-                &pg_connection_string
-            ));
+            .unwrap_or_else(|_| {
+                panic!(
+                    "ERROR: Failed to connect to Postgres at URL: {}",
+                    &pg_connection_string
+                )
+            });
     // Spawn connection
     tokio::spawn(async move {
         if let Err(error) = connection.await {
@@ -100,7 +133,7 @@ async fn subscription_200_valid_form_data() {
     assert_eq!(&retrieved_name, &name_field);
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn subscription_400_incomplete_form_data() {
     // Arrange
     let server_address = launch_http_server();
