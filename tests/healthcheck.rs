@@ -19,7 +19,7 @@ lazy_static! {
 fn launch_http_server() -> String {
     let guard = LAUNCH_SERVER_LOCK.lock().unwrap();
     let mut memoize_server_clone = unsafe { &mut MEMOIZE_SERVER };
-    if let None = memoize_server_clone.server_connection_string {
+    if memoize_server_clone.server_connection_string.is_none() {
         let local_addr = "127.0.0.1";
         let address: (&str, u16) = (local_addr, 0);
         let listener = TcpListener::bind(address).expect("Failed to bind random port");
