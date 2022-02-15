@@ -1,5 +1,6 @@
 # Database Diagram
 
+```text
 ┌─────────────────────────────────┐
 │  newsletter.subscription        │
 ├─────────────────────────────────┤
@@ -8,7 +9,9 @@
 │  name: text                     │
 │  subscription_date: timestamptz │
 └─────────────────────────────────┘
+```
 
+```text
 ┌─────────────────────────────────┐
 │  _initialization_migrations     │
 ├─────────────────────────────────┤
@@ -17,3 +20,4 @@
 │  installed_on: timestamptz      │
 |  md5_hash: uuid                 |
 └─────────────────────────────────┘
+```
