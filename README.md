@@ -102,3 +102,7 @@ cargo run --release
 k6 run --vus 200 ./testdata/k6_get_healthcheck.js --duration 60s
 k6 run --vus 200 ./testdata/k6_post_subscription.js --duration 60s
 ```
+
+## Database details
+
+Check the [database diagram](database_diagram.md) section.

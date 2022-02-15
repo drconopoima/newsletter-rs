@@ -1,7 +1,8 @@
 use deadpool_postgres::Pool;
-use newsletter_rs::{configuration::get_configuration, postgres::generate_connection_pool};
-use std::fs::{read_dir, File};
-use std::io::{BufReader, Read};
+use newsletter_rs::{
+    configuration::{get_configuration, MigrationSettings},
+    postgres::migrate_database,
+};
 use std::net::TcpListener;
 use uuid::Uuid;
 
@@ -19,57 +20,26 @@ async fn launch_http_server() -> ServerPostgres {
             &config_file, error
         )
     });
-    configuration.database.database = None;
+    let migration_settings = MigrationSettings {
+        migrate: true,
+        folder: Some("./migrations".to_string()),
+    };
+    configuration.database_migration = Some(migration_settings);
     let isolated_database_name = Uuid::new_v4().to_string();
-    let postgres_connection_string = configuration.database.connection_string();
-    let postgres_pool = generate_connection_pool(postgres_connection_string.to_string());
-    let postgres_client = postgres_pool
-        .get()
-        .await
-        .expect("Failed to generate client connection to postgres from pool");
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
-    let create_database_query = format!("CREATE DATABASE \"{}\"", uuid_without_hyphens.as_str());
-    postgres_client
-        .simple_query(&create_database_query)
-        .await
-        .expect("Failed to create database");
     configuration.database.database = Some(uuid_without_hyphens.to_string());
-    let postgres_connection_string = configuration.database.connection_string();
-    let postgres_pool = generate_connection_pool(postgres_connection_string.to_string());
-    let postgres_client = postgres_pool
-        .get()
-        .await
-        .expect("Failed to generate client connection to postgres from pool");
-    let mut path_entries: Vec<_> = read_dir("./migrations")
-        .expect("Failed to read database migrations directory")
-        .map(|r| r.unwrap())
-        .collect();
-    path_entries.sort_by_key(|dir| dir.path());
-    let mut migration_script_paths: Vec<String> = Vec::new();
-    for path in path_entries {
-        migration_script_paths.push(path.path().display().to_string());
-    }
-    for migration_script_path in migration_script_paths {
-        let migration_file = File::open(&migration_script_path).unwrap();
-        let mut reader = BufReader::new(migration_file);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer).unwrap_or_else(|error| {
-            panic!(
-                "Failed to read contents of file {}: {}",
-                &migration_script_path, error
-            )
-        });
-        let migration_file_contents = String::from_utf8_lossy(&buffer).to_string();
-        postgres_client
-            .simple_query(&migration_file_contents)
-            .await
-            .unwrap_or_else(|error| {
-                panic!(
-                    "Failed to perform query migration of file {}: {}",
-                    &migration_script_path, error
-                )
-            });
-    }
+    let postgres_pool: Pool = migrate_database(
+        configuration.database,
+        configuration
+            .database_migration
+            .as_ref()
+            .unwrap()
+            .folder
+            .as_ref()
+            .unwrap()
+            .to_string(),
+    )
+    .await;
     let local_addr = "127.0.0.1";
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");

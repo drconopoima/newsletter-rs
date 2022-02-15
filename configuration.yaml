@@ -5,3 +5,6 @@ database:
   username: "postgres"
   password: "password"
   database: "newsletter"
+database_migration:
+  migrate: false
+  folder: "./migrations"

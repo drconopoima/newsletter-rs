@@ -1,11 +1,20 @@
 use config;
 
 #[derive(serde::Deserialize)]
-pub struct Settings {
+pub struct ApplicationSettings {
     pub database: DatabaseSettings,
     pub application_port: u16,
+    pub database_migration: Option<MigrationSettings>,
 }
+
 #[derive(serde::Deserialize)]
+pub struct MigrationSettings {
+    pub migrate: bool,
+    pub folder: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+
 pub struct DatabaseSettings {
     pub port: u16,
     pub host: String,
@@ -32,9 +41,15 @@ impl DatabaseSettings {
             )
         }
     }
+    pub fn connection_string_without_database(&self) -> String {
+        format!(
+            "postgresql://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
+        )
+    }
 }
 // Read top-level configuration file with compatible extension YAML,JSON...
-pub fn get_configuration(filename: &str) -> Result<Settings, config::ConfigError> {
+pub fn get_configuration(filename: &str) -> Result<ApplicationSettings, config::ConfigError> {
     // Initialize configuration reader
     let mut settings = config::Config::default();
     settings.merge(config::File::with_name(filename))?;
