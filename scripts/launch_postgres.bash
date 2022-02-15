@@ -6,7 +6,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.6.0"
+readonly SCRIPT_VERSION="0.6.1"
 
 ## Section Help
 function help {
@@ -132,7 +132,7 @@ cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
 find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script; do
     if command -v md5sum 1>/dev/null 2>&1; then
         md5="$(md5sum "${script}" | awk '{ print $1 }')";
-        elif command -v md5 1>/dev/null 2>&1; then
+    elif command -v md5 1>/dev/null 2>&1; then
         md5="$(md5 "${script}")";
     fi
     sqlfilename=$(basename "${script}");
