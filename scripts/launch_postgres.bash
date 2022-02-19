@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Script for launching a container running Postgres
+# Use as:
+#     export POSTGRES_VERSION=9; export POSTGRES_PASSWORD=pwd; launch_postgres.bash 
+IFS=$' \n\t'
 # set -x
 set -Eeuo pipefail
 #
@@ -6,38 +10,43 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.6.1"
+readonly SCRIPT_VERSION="0.7.0"
 
 ## Section Help
-function help {
-    printf "%s [-h] (v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
+function print_help {
+    printf "%s [-h|--help] (v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
     printf "Launch a containerized PostgreSQL database for newsletter-rs\n"
-    printf "\t -h: Show this help message\n"
+    printf "    -h|--help: Show this help message\n"
     printf "\n"
-    printf "Container Engine: Defaults to Podman (if available in PATH). Otherwise Docker (if available)\n"
+    printf "Container technology defaults to Podman (if available in PATH). Otherwise Docker (if available)\n"
     printf "\n"
     printf "Parameters are customized by exporting any of the following environment variables:\n"
-    printf "\t POSTGRES_USER: User for postgres. Default: 'postgres'\n"
-    printf "\t POSTGRES_PASSWORD: Password for POSTGRES_USER. Default: 'password'\n"
-    printf "\t POSTGRES_DB: User for postgres. Default: 'newsletter'\n"
-    printf "\t POSTGRES_PORT: Bind Port for postgres. Default: '5432'\n"
-    printf "\t POSTGRES_VERSION: Container version at registry. Default: 'latest'\n"
-    printf "\t CONTAINER_REGISTRY: Container registry to pull from. Default: 'docker.io/library/postgres'\n"
-    printf "\t SKIP_CONTAINER: Allow skipping the container initialization step. Default: unset.\n"
+    printf "    POSTGRES_USER: User for postgres. Default: 'postgres'\n"
+    printf "    POSTGRES_PASSWORD: Password for POSTGRES_USER. Default: 'password'\n"
+    printf "    POSTGRES_DB: User for postgres. Default: 'newsletter'\n"
+    printf "    POSTGRES_PORT: Bind Port for postgres. Default: '5432'\n"
+    printf "    POSTGRES_VERSION: Container version at registry. Default: 'latest'\n"
+    printf "    CONTAINER_REGISTRY: Container registry to pull from. Default: 'docker.io/library/postgres'\n"
+    printf "    SKIP_CONTAINER: Skip container initialization step. Default: 0 (don't skip).\n"
+    printf "\n"
+    printf "Example:\n"
+    printf "    export POSTGRES_VERSION=9; export POSTGRES_PASSWORD=pwd; %s" "${SCRIPT_NAME}"
 }
-readonly -f help
+readonly -f print_help
 
-while getopts ':h' option; do
-    case "$option" in
-        h)  # display help
-            help
+while test $# -gt 0; do
+    _key="$1"
+    case "$_key" in
+        -h|--help)
+            print_help
             exit 0
         ;;
-        * )
-            echo "Error: Invalid option $*"
-            help
+        *)
+            echo "[ERROR] Invalid option $*"
+            print_help
             exit 2
     esac
+    shift
 done
 
 # Section Parent Path
@@ -49,20 +58,20 @@ printf "%s (v%s, newsletter-rs v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}" "${N
 
 ## Section validate dependencies
 if ! command -v psql 1>/dev/null 2>&1; then
-    echo >&2 "ERROR: psql (PostgreSQL client) is not installed."
-    exit 1
+echo >&2 "[ERROR] psql (PostgreSQL client) is not installed."
+exit 1
 fi
 if command -v podman 1>/dev/null 2>&1; then
-    function containertech {
-        podman $@
-    }
-    elif command -v docker 1>/dev/null 2>&1; then
-    function containertech {
-        docker $@
-    }
+function containertech {
+    podman "$@"
+}
+elif command -v docker 1>/dev/null 2>&1; then
+function containertech {
+    docker "$@"
+}
 else
-    echo >&2 "ERROR: No container library (Podman or Docker) is installed."
-    exit 1
+echo >&2 "[ERROR] No container library (Podman or Docker) is installed."
+exit 1
 fi
 readonly -f containertech
 export containertech
@@ -82,32 +91,41 @@ readonly DB_VERSION=${POSTGRES_VERSION:="latest"}
 readonly DB_REGISTRY=${CONTAINER_REGISTRY:="docker.io/library/postgres"}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
-set +u
+if [[ -z ${SKIP_CONTAINER+undeclared} ]]; then
+    SKIP_CONTAINER='0'
+fi
+if [[ -z "${SKIP_CONTAINER-}" ]]; then
+    echo "Constant \$SKIP_CONTAINER should not be null" >&2 && exit 1
+elif [[ ${!SKIP_CONTAINER-x} == x && ${!SKIP_CONTAINER-y} == y && "${SKIP_CONTAINER}" != 0 ]]; then
+        SKIP_CONTAINER=1
+fi
+readonly SKIP_CONTAINER
+
 # Allow to skip Container launch if a containerized Postgres database is already running
-if [[ -z "${SKIP_CONTAINER}" ]]; then
-    set -u
+if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
     ## Section Launch Container
     if [ ! "$(containertech ps -aq -f name="^${CONTAINER_NAME}$")" ]; then
         printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
         printf "When ready, clean-up by running:\n"
         printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
         containertech run -d --rm --name "${CONTAINER_NAME}" \
-            -e "POSTGRES_USER=${DB_USER}" \
-            -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
-            -p "${DB_PORT}":5432 \
-            "${DB_REGISTRY}:${DB_VERSION}" \
-            postgres -N 1000 1>/dev/null
-            # ^ Increased maximum number of connections for testing purposes`
+        -e "POSTGRES_USER=${DB_USER}" \
+        -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+        -p "${DB_PORT}":5432 \
+        "${DB_REGISTRY}:${DB_VERSION}" \
+        postgres -N 1000 1>/dev/null
+        # ^ Increased maximum number of connections for testing purposes`
     else
-        printf "ERROR: There exists a container called '%s'\n" "${CONTAINER_NAME}"
+        printf "[WARNING] There exists a container called '%s'\n" "${CONTAINER_NAME}"
         printf "\n"
         containertech ps -a -f name="${CONTAINER_NAME}"
         printf "\n"
-        printf "Please clean-up by running:\n"
+        printf "Continuing anyways. On error, clean-up by running:\n"
         if [ "$(containertech ps -aq -f name="^${CONTAINER_NAME}$" -f status=running)" ]; then
             printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
         fi
         printf "\t {podman/docker} container rm %s\n" "${CONTAINER_NAME}"
+        printf "\n"
     fi
 fi
 # Create temporary password file
@@ -132,7 +150,7 @@ cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
 find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script; do
     if command -v md5sum 1>/dev/null 2>&1; then
         md5="$(md5sum "${script}" | awk '{ print $1 }')";
-    elif command -v md5 1>/dev/null 2>&1; then
+        elif command -v md5 1>/dev/null 2>&1; then
         md5="$(md5 "${script}")";
     fi
     sqlfilename=$(basename "${script}");
@@ -155,14 +173,14 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
             echo "${rollbackoutput}"
             exit 4
         fi
-         psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" --file="${script}" && \
-         psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
+        psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" --file="${script}" && \
+        psql -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
         printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
     else
         printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
         shopt -s lastpipe
         set +Ee
-         psql -v ON_ERROR_STOP=1 -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" --file="${script}"  2>&1 | rollbackoutput=$(</dev/stdin)
+        psql -v ON_ERROR_STOP=1 -h localhost -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" --file="${script}"  2>&1 | rollbackoutput=$(</dev/stdin)
         returncode="$?"
         shopt -u lastpipe
         set -Ee
