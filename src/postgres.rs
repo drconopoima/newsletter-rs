@@ -45,8 +45,7 @@ pub async fn check_database_exists(
         "SELECT 1 FROM pg_database WHERE datname = '{}'",
         database_name
     );
-    let database_existence_result = &postgres_client
-        .simple_query(&check_database_query)
+    let database_existence_result = &run_simple_query(&postgres_client, &check_database_query)
         .await
         .unwrap_or_else(|error| {
             panic!(
@@ -97,18 +96,37 @@ pub async fn migrate_database(
         migration_script_paths.push(path.path().display().to_string());
     }
     create_migrations_table(&postgres_client).await;
-    let statement = match postgres_client
+    let check_migration_statement = match postgres_client
         .prepare_cached(
             r#"
-    INSERT into _initialization_migrations (filename, md5_hash)
-        VALUES ($1, $2)
-    "#,
+                    SELECT 1 FROM _initialization_migrations WHERE md5_hash=$1
+                    "#,
         )
         .await
     {
         Ok(statement) => statement,
         Err(error) => {
-            panic!("Failed to prepare cached insert migration: {}", error);
+            panic!(
+                "Failed to prepare cached check migration statement, {}",
+                error
+            );
+        }
+    };
+    let insert_migration_statement = match postgres_client
+        .prepare_cached(
+            r#"
+                    INSERT into _initialization_migrations (filename, md5_hash)
+                        VALUES ($1, $2)
+                    "#,
+        )
+        .await
+    {
+        Ok(statement) => statement,
+        Err(error) => {
+            panic!(
+                "Failed to prepare cached insert migration statement, {}",
+                error
+            );
         }
     };
     for migration_script_path in migration_script_paths {
@@ -122,23 +140,32 @@ pub async fn migrate_database(
             )
         });
         let migration_file_contents = String::from_utf8_lossy(&buffer).to_string();
-        run_simple_query(&postgres_client, &migration_file_contents)
-            .await
-            .unwrap_or_else(|error| {
-                panic!(
-                    "Failed to perform query migration of file {}: {}",
-                    &migration_script_path, error
-                )
-            });
         let md5_script_digest = md5::compute(&migration_file_contents);
         let md5_script_string = format!("{:x}", md5_script_digest);
         let script_md5_uuid = Uuid::parse_str(&md5_script_string).unwrap();
-        let file_path = std::path::Path::new(&migration_script_path);
-        let filename_script: &str = file_path.file_name().unwrap().to_str().unwrap();
-        postgres_client
-            .query(&statement, &[&filename_script, &script_md5_uuid])
+        let migration_run_result = &postgres_client
+            .query_opt(&check_migration_statement, &[&script_md5_uuid])
             .await
-            .unwrap_or_else(|error| panic!("Failed to insert migration: {}", error));
+            .unwrap();
+        if migration_run_result.is_none() {
+            run_simple_query(&postgres_client, &migration_file_contents)
+                .await
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "Failed to perform query migration of file {}: {}",
+                        &migration_script_path, error
+                    )
+                });
+            let file_path = std::path::Path::new(&migration_script_path);
+            let filename_script: &str = file_path.file_name().unwrap().to_str().unwrap();
+            postgres_client
+                .query(
+                    &insert_migration_statement,
+                    &[&filename_script, &script_md5_uuid],
+                )
+                .await
+                .unwrap_or_else(|error| panic!("Failed to insert migration: {}", error));
+        }
     }
     postgres_pool
 }
