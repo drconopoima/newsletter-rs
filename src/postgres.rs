@@ -97,6 +97,20 @@ pub async fn migrate_database(
         migration_script_paths.push(path.path().display().to_string());
     }
     create_migrations_table(&postgres_client).await;
+    let statement = match postgres_client
+        .prepare_cached(
+            r#"
+    INSERT into _initialization_migrations (filename, md5_hash)
+        VALUES ($1, $2)
+    "#,
+        )
+        .await
+    {
+        Ok(statement) => statement,
+        Err(error) => {
+            panic!("Failed to prepare cached insert migration: {}", error);
+        }
+    };
     for migration_script_path in migration_script_paths {
         let migration_file = File::open(&migration_script_path).unwrap();
         let mut reader = BufReader::new(migration_file);
@@ -121,22 +135,8 @@ pub async fn migrate_database(
         let script_md5_uuid = Uuid::parse_str(&md5_script_string).unwrap();
         let file_path = std::path::Path::new(&migration_script_path);
         let filename_script: &str = file_path.file_name().unwrap().to_str().unwrap();
-        let statement = match postgres_client
-            .prepare_cached(
-                r#"
-            INSERT into _initialization_migrations (filename, md5_hash)
-                VALUES ($1, $2)
-            "#,
-            )
-            .await
-        {
-            Ok(statement) => Some(statement),
-            Err(error) => {
-                panic!("Failed to prepare cached insert migration: {}", error);
-            }
-        };
         postgres_client
-            .query(&statement.unwrap(), &[&filename_script, &script_md5_uuid])
+            .query(&statement, &[&filename_script, &script_md5_uuid])
             .await
             .unwrap_or_else(|error| panic!("Failed to insert migration: {}", error));
     }
