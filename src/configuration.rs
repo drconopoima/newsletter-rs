@@ -1,4 +1,4 @@
-use config;
+use config::{Config, File, FileFormat};
 
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
@@ -51,8 +51,10 @@ impl DatabaseSettings {
 // Read top-level configuration file with compatible extension YAML,JSON...
 pub fn get_configuration(filename: &str) -> Result<ApplicationSettings, config::ConfigError> {
     // Initialize configuration reader
-    let mut settings = config::Config::default();
-    settings.merge(config::File::with_name(filename))?;
+    let builder = Config::builder()
+        .add_source(File::new(filename, FileFormat::Yaml))
+        .build()
+        .unwrap();
     // Convert into Result<Settings, ConfigError>
-    settings.try_into()
+    builder.try_deserialize::<ApplicationSettings>()
 }

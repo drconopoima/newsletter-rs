@@ -13,7 +13,7 @@ pub struct ServerPostgres {
 
 // Launch an instance for our HTTP server in the background
 async fn launch_http_server() -> ServerPostgres {
-    let config_file: &str = "configuration";
+    let config_file: &str = "configuration.yaml";
     let mut configuration = get_configuration(config_file).unwrap_or_else(|error| {
         panic!(
             "ERROR: Failed to read configuration file '{}': {}",

@@ -8,7 +8,7 @@ use std::net::TcpListener;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let config_file: &str = "configuration";
+    let config_file: &str = "configuration.yaml";
     let configuration: ApplicationSettings =
         get_configuration(config_file).unwrap_or_else(|error| {
             panic!(
