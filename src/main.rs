@@ -1,4 +1,5 @@
 use deadpool_postgres::Pool;
+use env_logger::{Builder, Env};
 use newsletter_rs::{
     configuration::{get_configuration, ApplicationSettings, DatabaseSettings},
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
@@ -54,6 +55,8 @@ async fn main() -> std::io::Result<()> {
     // Raises if failed to bind address
     let bind_address: (&str, u16) = ("127.0.0.1", configuration.application_port);
     let listener = TcpListener::bind(bind_address)?;
+    // env_logger init() to call set_logger. RUST_LOG to customize logging level
+    Builder::from_env(Env::default().default_filter_or("info")).init();
     // Run server on TcpListener
     run(listener, postgres_connection)?.await
 }
