@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - cache_postgresql-client-14
+      - cache_postgresql-client-common
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
