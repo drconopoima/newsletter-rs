@@ -63,7 +63,7 @@ jobs:
           echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
           set -x
           sudo apt-get update
-          sudo apt-cache policy postgresql-client-12 | grep 'Candidate|Installed'
+          sudo apt-cache policy postgresql-client-12
           sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
       - name: Cache postgresql-client-12
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
@@ -144,7 +144,7 @@ jobs:
           echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
           set -x
           sudo apt-get update
-          sudo apt-cache policy postgresql-client-12 | grep 'Candidate|Installed'
+          sudo apt-cache policy postgresql-client-12
           sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
       - name: Cache postgresql-client-12
         id: cache-postgresqlclient12
@@ -210,7 +210,7 @@ jobs:
           echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
           set -x
           sudo apt-get update
-          sudo apt-cache policy postgresql-client-12 | grep 'Candidate|Installed'
+          sudo apt-cache policy postgresql-client-12
           sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
       - name: Cache postgresql-client-12
         id: cache-postgresqlclient12
