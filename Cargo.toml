@@ -24,6 +24,7 @@ tokio-postgres = { version="^0.7", features=["with-uuid-0_8"] }
 uuid = { version = "^0.8", features = ["v4"] }
 regex = { version = "^1" }
 deadpool-postgres = { version = "^0.10" }
+log = "^0.4"
 md5 = { version = "^0.7" }
 env_logger = { version = "^0.9" }
 

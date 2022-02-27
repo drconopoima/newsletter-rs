@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use deadpool_postgres::Pool;
+use log::warn;
 use regex::Regex;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -15,58 +16,79 @@ pub async fn subscription(
     form: web::Form<SubscriptionFormData>,
 ) -> impl Responder {
     let generated_uuid: Uuid = Uuid::new_v4();
-    let postgres_pool: &Arc<Pool> = request.app_data::<Arc<Pool>>().unwrap();
-    let postgres_client = match postgres_pool.get().await {
+    let optional_postgres_pool: Option<&Arc<Pool>> = match request.app_data::<Arc<Pool>>() {
+        Some(postgres_pool) => Some(postgres_pool),
+        None => {
+            warn!("Could not retrieve postgres pool from app_data.");
+            None
+        }
+    };
+    if optional_postgres_pool.is_none() {
+        return HttpResponse::InternalServerError()
+            .body("DB pool error while processing subscription.");
+    }
+    let postgres_pool = optional_postgres_pool.unwrap();
+    let optional_postgres_client = match postgres_pool.get().await {
         Ok(manager) => Some(manager),
         Err(error) => {
+            warn!("Could not retrieve postgres client from pool, {}.", error);
+            None
+        }
+    };
+    if optional_postgres_client.is_none() {
+        return HttpResponse::InternalServerError()
+            .body("DB client error while processing subscription.");
+    }
+    let postgres_client = optional_postgres_client.unwrap();
+    let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
+    if !email_format.is_match(&form.email) {
+        warn!("User input error, malformed email, got '{}'.", &form.email);
+        return HttpResponse::BadRequest().body(format!(
+            "Input error, malformed email, got '{}'.",
+            &form.email
+        ));
+    }
+    let statement = match postgres_client
+        .prepare_cached(
+            r#"
+                INSERT INTO newsletter.subscription (id, email, name)
+                VALUES ($1, $2, $3)
+            "#,
+        )
+        .await
+    {
+        Ok(statement) => Some(statement),
+        Err(error) => {
             println!(
-                "Failed to retrieve postgres connection from pool: {}",
+                "Failed to prepare cached insert subscription query: {}",
                 error
             );
             None
         }
     };
-    if postgres_client.is_none() {
-        HttpResponse::InternalServerError().finish();
+    if statement.is_none() {
+        return HttpResponse::InternalServerError().finish();
     }
-    let postgres_client = postgres_client.unwrap();
-    let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
-    if email_format.is_match(&form.email) {
-        let statement = match postgres_client
-            .prepare_cached(
-                r#"
-                    INSERT INTO newsletter.subscription (id, email, name)
-                    VALUES ($1, $2, $3)
-                "#,
-            )
-            .await
-        {
-            Ok(statement) => Some(statement),
-            Err(error) => {
-                println!(
-                    "Failed to prepare cached insert subscription query: {}",
-                    error
-                );
-                None
+    match postgres_client
+        .query(
+            &statement.unwrap(),
+            &[&generated_uuid, &form.email, &form.name],
+        )
+        .await
+    {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(error) => {
+            warn!("Failed to insert subscription: {}", error);
+            let error_message = error.to_string();
+            if error_message
+                .starts_with("db error: ERROR: duplicate key value violates unique constraint")
+            {
+                return HttpResponse::BadRequest().body(format!(
+                    "Input error, email '{}' is already subscribed.",
+                    &form.email
+                ));
             }
-        };
-        if statement.is_none() {
-            HttpResponse::InternalServerError().finish();
+            HttpResponse::InternalServerError().body("DB error while inserting subscription")
         }
-        match postgres_client
-            .query(
-                &statement.unwrap(),
-                &[&generated_uuid, &form.email, &form.name],
-            )
-            .await
-        {
-            Ok(_) => HttpResponse::Ok().finish(),
-            Err(error) => {
-                println!("Failed to insert subscription: {}", error);
-                HttpResponse::InternalServerError().finish()
-            }
-        }
-    } else {
-        HttpResponse::BadRequest().finish()
     }
 }
