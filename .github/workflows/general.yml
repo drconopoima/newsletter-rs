@@ -51,16 +51,20 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit != 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{ secrets.POSTGRESQLCLIENTCOMMON_VERSION }}
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
           echo "runner.os: ${{ runner.os }}"
           echo "runner.temp: ${{ runner.temp }}"
+          echo "SOURCE: ${SOURCE}"
+          echo "POSTGRESQLCLIENTCOMMON_VERSION: ${POSTGRESQLCLIENTCOMMON_VERSION}"
+          set -x
           sudo apt-get update
           sudo apt-get install -y postgresql-client-common="${POSTGRESQLCLIENTCOMMON_VERSION}"
           rm -fr "${SOURCE}"
           mkdir -vp "${SOURCE}"
+          { set +x; } 2>/dev/null
           sudo dpkg -L postgresql-client-common | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${SOURCE}" ${path}; fi; done
       - name: Copy cached postgresql-client-common
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit == 'true'
@@ -122,16 +126,20 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit != 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{ secrets.POSTGRESQLCLIENTCOMMON_VERSION }}
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
           echo "runner.os: ${{ runner.os }}"
           echo "runner.temp: ${{ runner.temp }}"
+          echo "SOURCE: ${SOURCE}"
+          echo "POSTGRESQLCLIENTCOMMON_VERSION: ${POSTGRESQLCLIENTCOMMON_VERSION}"
+          set -x
           sudo apt-get update
           sudo apt-get install -y postgresql-client-common="${POSTGRESQLCLIENTCOMMON_VERSION}"
           rm -fr "${SOURCE}"
           mkdir -vp "${SOURCE}"
+          { set +x; } 2>/dev/null
           sudo dpkg -L postgresql-client-common | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${SOURCE}" ${path}; fi; done
       - name: Copy cached postgresql-client-common
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit == 'true'
@@ -177,22 +185,26 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit != 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{ secrets.POSTGRESQLCLIENTCOMMON_VERSION }}
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
           echo "runner.os: ${{ runner.os }}"
           echo "runner.temp: ${{ runner.temp }}"
+          echo "SOURCE: ${SOURCE}"
+          echo "POSTGRESQLCLIENTCOMMON_VERSION: ${POSTGRESQLCLIENTCOMMON_VERSION}"
+          set -x
           sudo apt-get update
           sudo apt-get install -y postgresql-client-common="${POSTGRESQLCLIENTCOMMON_VERSION}"
           rm -fr "${SOURCE}"
           mkdir -vp "${SOURCE}"
+          { set +x; } 2>/dev/null
           sudo dpkg -L postgresql-client-common | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${SOURCE}" ${path}; fi; done
       - name: Copy cached postgresql-client-common
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit == 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{ secrets.POSTGRESQLCLIENTCOMMON_VERSION }}
         run: |
           echo "# Using Cached packages"
           sudo cp --verbose --force --recursive "${SOURCE}"/. /
