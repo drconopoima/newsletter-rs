@@ -10,7 +10,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.8.0"
+readonly SCRIPT_VERSION="0.8.1"
 
 ## Section Help
 function print_help {
@@ -111,12 +111,15 @@ if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
         printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
         printf "When ready, clean-up by running:\n"
         printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
-        containertech run -d --rm --name "${CONTAINER_NAME}" \
+        containertech create --rm --name "${CONTAINER_NAME}" \
         -e "POSTGRES_USER=${DB_USER}" \
         -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
         -p "${DB_PORT}":5432 \
+        --health-cmd pg_isready --health-interval 10s \
+        --health-timeout 5s --health-retries 5 \
         "${DB_REGISTRY}:${DB_VERSION}" \
         postgres -N 1000 1>/dev/null
+        containertech start "${CONTAINER_NAME}" 1>/dev/null
         # ^ Increased maximum number of connections for testing purposes`
     else
         printf "[WARNING] There exists a container called '%s'\n" "${CONTAINER_NAME}"

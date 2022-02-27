@@ -25,6 +25,7 @@ jobs:
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -46,7 +47,6 @@ jobs:
 
       - name: Migrate database
         run: |
-          sudo apt-get install libpq-dev postgresql-client -y
           SKIP_CONTAINER=true ./scripts/launch_postgres.bash
       - name: Run cargo test
         uses: actions-rs/cargo@v1
@@ -73,13 +73,14 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -93,7 +94,6 @@ jobs:
 
       - name: Migrate database
         run: |
-          sudo apt-get install libpq-dev postgresql-client -y
           SKIP_CONTAINER=true ./scripts/launch_postgres.bash
       - name: Run clippy
         uses: actions-rs/clippy-check@v1
@@ -106,13 +106,14 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -125,7 +126,6 @@ jobs:
 
       - name: Migrate database
         run: |
-          sudo apt-get install libpq-dev postgresql-client -y
           SKIP_CONTAINER=true ./scripts/launch_postgres.bash
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
