@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -62,6 +62,7 @@ jobs:
           echo "POSTGRESQLCLIENTCOMMON_VERSION: ${POSTGRESQLCLIENTCOMMON_VERSION}"
           set -x
           sudo apt-get update
+          sudo apt-cache policy postgresql-client-common
           sudo apt-get install -y postgresql-client-common="${POSTGRESQLCLIENTCOMMON_VERSION}"
           rm -fr "${CACHE_SOURCE}"
           mkdir -vp "${CACHE_SOURCE}"
@@ -99,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -133,6 +134,7 @@ jobs:
           echo "POSTGRESQLCLIENTCOMMON_VERSION: ${POSTGRESQLCLIENTCOMMON_VERSION}"
           set -x
           sudo apt-get update
+          sudo apt-cache policy postgresql-client-common
           sudo apt-get install -y postgresql-client-common="${POSTGRESQLCLIENTCOMMON_VERSION}"
           rm -fr "${CACHE_SOURCE}"
           mkdir -vp "${CACHE_SOURCE}"
@@ -156,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -189,6 +191,7 @@ jobs:
           echo "POSTGRESQLCLIENTCOMMON_VERSION: ${POSTGRESQLCLIENTCOMMON_VERSION}"
           set -x
           sudo apt-get update
+          sudo apt-cache policy postgresql-client-common
           sudo apt-get install -y postgresql-client-common="${POSTGRESQLCLIENTCOMMON_VERSION}"
           rm -fr "${CACHE_SOURCE}"
           mkdir -vp "${CACHE_SOURCE}"
