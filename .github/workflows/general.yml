@@ -12,7 +12,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  POSTGRESQLCLIENT14_VERSION: "14.2-1.pgdg20.04+1"
+  POSTGRESQLCLIENT14_VERSION: "12.9-0ubuntu0.20.04.1"
 
 jobs:
   test:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:14
+        image: postgres:12
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -46,15 +46,15 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Install netbase
-        id: install-netbase
-        run: sudo apt-get install -y netbase
       - name: Uninstall postgresql-client-14
         run: |
           sudo apt-get remove postgresql-client-14 -y
-      - name: Install postgresql-client-14
-        id: install-postgresqlclient14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit != 'true'
+      - name: Install netbase
+        id: install-netbase
+        run: sudo apt-get install -y netbase
+      - name: Install postgresql-client-12
+        id: install-postgresqlclient12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
@@ -63,22 +63,22 @@ jobs:
           echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
           set -x
           sudo apt-get update
-          sudo apt-cache policy postgresql-client-14
-          sudo apt-get install -y postgresql-client-14="${POSTGRESQLCLIENT14_VERSION}"
-      - name: Cache postgresql-client-14
-        id: cache-postgresqlclient14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit != 'true'
+          sudo apt-cache policy postgresql-client-12
+          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
+      - name: Cache postgresql-client-12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
+        id: cache-postgresqlclient12
         env:
-          CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-14
+          CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-12
         run: |
           rm -fr "${CACHE_SOURCE}"
           mkdir -vp "${CACHE_SOURCE}"
           { set +x; } 2>/dev/null
-          sudo dpkg -L postgresql-client-14 | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${CACHE_SOURCE}" ${path}; fi; done
-      - name: Copy cached postgresql-client-14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit == 'true'
+          sudo dpkg -L postgresql-client-12 | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${CACHE_SOURCE}" ${path}; fi; done
+      - name: Copy cached postgresql-client-12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit == 'true'
         run: |
-          if ! dpkg-query -l postgresql-client-14 1>/dev/null 2>&1; then
+          if ! dpkg-query -l postgresql-client-12 1>/dev/null 2>&1; then
             echo "# Using Cached packages"
             sudo cp --verbose --force --recursive "${CACHE_SOURCE}"/. /
           fi
@@ -127,12 +127,15 @@ jobs:
           components: clippy
           toolchain: stable
           override: true
+      - name: Uninstall postgresql-client-14
+        run: |
+          sudo apt-get remove postgresql-client-14 -y
       - name: Install netbase
         id: install-netbase
         run: sudo apt-get install -y netbase
-      - name: Install postgresql-client-14
-        id: install-postgresqlclient14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit != 'true'
+      - name: Install postgresql-client-12
+        id: install-postgresqlclient12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
@@ -141,22 +144,22 @@ jobs:
           echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
           set -x
           sudo apt-get update
-          sudo apt-cache policy postgresql-client-14
-          sudo apt-get install -y postgresql-client-14="${POSTGRESQLCLIENT14_VERSION}"
-      - name: Cache postgresql-client-14
-        id: cache-postgresqlclient14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit != 'true'
+          sudo apt-cache policy postgresql-client-12
+          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
+      - name: Cache postgresql-client-12
+        id: cache-postgresqlclient12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         env:
-          CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-14
+          CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-12
         run: |
           rm -fr "${CACHE_SOURCE}"
           mkdir -vp "${CACHE_SOURCE}"
           { set +x; } 2>/dev/null
-          sudo dpkg -L postgresql-client-14 | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${CACHE_SOURCE}" ${path}; fi; done
-      - name: Copy cached postgresql-client-14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit == 'true'
+          sudo dpkg -L postgresql-client-12 | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${CACHE_SOURCE}" ${path}; fi; done
+      - name: Copy cached postgresql-client-12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit == 'true'
         run: |
-          if ! dpkg-query -l postgresql-client-14 1>/dev/null 2>&1; then
+          if ! dpkg-query -l postgresql-client-12 1>/dev/null 2>&1; then
             echo "# Using Cached packages"
             sudo cp --verbose --force --recursive "${CACHE_SOURCE}"/. /
           fi
@@ -190,12 +193,15 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - name: Uninstall postgresql-client-14
+        run: |
+          sudo apt-get remove postgresql-client-14 -y
       - name: Install netbase
         id: install-netbase
         run: sudo apt-get install -y netbase
-      - name: Install postgresql-client-14
-        id: install-postgresqlclient14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit != 'true'
+      - name: Install postgresql-client-12
+        id: install-postgresqlclient12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
@@ -204,22 +210,22 @@ jobs:
           echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
           set -x
           sudo apt-get update
-          sudo apt-cache policy postgresql-client-14
-          sudo apt-get install -y postgresql-client-14="${POSTGRESQLCLIENT14_VERSION}"
-      - name: Cache postgresql-client-14
-        id: cache-postgresqlclient14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit != 'true'
+          sudo apt-cache policy postgresql-client-12
+          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
+      - name: Cache postgresql-client-12
+        id: cache-postgresqlclient12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         env:
-          CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-14
+          CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-12
         run: |
           rm -fr "${CACHE_SOURCE}"
           mkdir -vp "${CACHE_SOURCE}"
           { set +x; } 2>/dev/null
-          sudo dpkg -L postgresql-client-14 | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${CACHE_SOURCE}" ${path}; fi; done
-      - name: Copy cached postgresql-client-14
-        if: steps.cache-postgresqlclient14.outputs.cache-hit == 'true'
+          sudo dpkg -L postgresql-client-12 | while IFS= read -r path; do if test -f ${path}; then cp -a --verbose --parents --target-directory "${CACHE_SOURCE}" ${path}; fi; done
+      - name: Copy cached postgresql-client-12
+        if: steps.cache-postgresqlclient12.outputs.cache-hit == 'true'
         run: |
-          if ! dpkg-query -l postgresql-client-14 1>/dev/null 2>&1; then
+          if ! dpkg-query -l postgresql-client-12 1>/dev/null 2>&1; then
             echo "# Using Cached packages"
             sudo cp --verbose --force --recursive "${CACHE_SOURCE}"/. /
           fi
