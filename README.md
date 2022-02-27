@@ -77,6 +77,22 @@ Send subscription entries by using the `/subscription` endpoint
 curl -s -w'%{http_code}' "http://127.0.0.1:8000/subscription" -d "email=email%40drconopoima.com&name=Jane%20Doe"
 ```
 
+### Customize logging level
+
+By default, newsletter-rs is configured with Actix Logger Middleware in INFO logging level. It can be customized with RUST_LOG environment variable at runtime.
+
+```sh
+    export RUST_LOG=DEBUG # Valid options trace|debug|info|warn|error|fatal
+    cargo run
+```
+
+### Enable backtrace
+
+```sh
+    export RUST_BACKTRACE=1 # Valid options 1|full
+    cargo run
+```
+
 ## How to build
 
 Using `cargo`:
