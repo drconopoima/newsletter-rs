@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use deadpool_postgres::Pool;
-use log::warn;
 use regex::Regex;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -19,7 +18,7 @@ pub async fn subscription(
     let optional_postgres_pool: Option<&Arc<Pool>> = match request.app_data::<Arc<Pool>>() {
         Some(postgres_pool) => Some(postgres_pool),
         None => {
-            warn!("Could not retrieve postgres pool from app_data.");
+            tracing::error!("Could not retrieve postgres pool from app_data.");
             None
         }
     };
@@ -31,7 +30,7 @@ pub async fn subscription(
     let optional_postgres_client = match postgres_pool.get().await {
         Ok(manager) => Some(manager),
         Err(error) => {
-            warn!("Could not retrieve postgres client from pool, {}.", error);
+            tracing::error!("Could not retrieve postgres client from pool, {}.", error);
             None
         }
     };
@@ -42,7 +41,7 @@ pub async fn subscription(
     let postgres_client = optional_postgres_client.unwrap();
     let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
     if !email_format.is_match(&form.email) {
-        warn!("User input error, malformed email, got '{}'.", &form.email);
+        tracing::warn!("User input error, malformed email, got '{}'.", &form.email);
         return HttpResponse::BadRequest().body(format!(
             "Input error, malformed email, got '{}'.",
             &form.email
@@ -59,7 +58,7 @@ pub async fn subscription(
     {
         Ok(statement) => Some(statement),
         Err(error) => {
-            println!(
+            tracing::error!(
                 "Failed to prepare cached insert subscription query: {}",
                 error
             );
@@ -78,7 +77,7 @@ pub async fn subscription(
     {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(error) => {
-            warn!("Failed to insert subscription: {}", error);
+            tracing::warn!("Failed to insert subscription: {}", error);
             let error_message = error.to_string();
             if error_message
                 .starts_with("db error: ERROR: duplicate key value violates unique constraint")
