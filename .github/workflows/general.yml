@@ -51,7 +51,7 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit != 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.postgresqlclientcommon_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
@@ -66,7 +66,7 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit == 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.postgresqlclientcommon_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
         run: |
           echo "# Using Cached packages"
           sudo cp --verbose --force --recursive "${SOURCE}"/. /
@@ -122,7 +122,7 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit != 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.postgresqlclientcommon_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
@@ -137,7 +137,7 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit == 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.postgresqlclientcommon_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
         run: |
           echo "# Using Cached packages"
           sudo cp --verbose --force --recursive "${SOURCE}"/. /
@@ -177,7 +177,7 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit != 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.postgresqlclientcommon_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
         run: |
           echo "github.workspace: ${{ github.workspace }}"
           echo "runner.workspace: ${{ runner.workspace }}"
@@ -192,7 +192,7 @@ jobs:
         if: steps.cache-postgresqlclientcommon.outputs.cache-hit == 'true'
         env:
           SOURCE: ${{ runner.temp }}/postgresql-client-common
-          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.postgresqlclientcommon_VERSION}}
+          POSTGRESQLCLIENTCOMMON_VERSION: ${{secrets.POSTGRESQLCLIENTCOMMON_VERSION}}
         run: |
           echo "# Using Cached packages"
           sudo cp --verbose --force --recursive "${SOURCE}"/. /
