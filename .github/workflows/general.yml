@@ -12,7 +12,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  POSTGRESQLCLIENT14_VERSION: "12.9-0ubuntu0.20.04.1"
+  POSTGRESQLCLIENT12_VERSION: "12.9-0ubuntu0.20.04.1"
 
 jobs:
   test:
@@ -36,7 +36,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${POSTGRESQLCLIENT14_VERSION}
+          key: ${POSTGRESQLCLIENT12_VERSION}
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -56,11 +56,11 @@ jobs:
           echo "runner.workspace: ${{ runner.workspace }}"
           echo "runner.os: ${{ runner.os }}"
           echo "runner.temp: ${{ runner.temp }}"
-          echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
+          echo "POSTGRESQLCLIENT12_VERSION: ${POSTGRESQLCLIENT12_VERSION}"
           set -x
           sudo apt-get update
           sudo apt-cache policy postgresql-client-12
-          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
+          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT12_VERSION}"
       - name: Copy to Cache source
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         env:
@@ -120,7 +120,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${POSTGRESQLCLIENT14_VERSION}
+          key: ${POSTGRESQLCLIENT12_VERSION}
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -140,11 +140,11 @@ jobs:
           echo "runner.workspace: ${{ runner.workspace }}"
           echo "runner.os: ${{ runner.os }}"
           echo "runner.temp: ${{ runner.temp }}"
-          echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
+          echo "POSTGRESQLCLIENT12_VERSION: ${POSTGRESQLCLIENT12_VERSION}"
           set -x
           sudo apt-get update
           sudo apt-cache policy postgresql-client-12
-          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
+          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT12_VERSION}"
       - name: Copy to Cache source
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         env:
@@ -190,7 +190,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${POSTGRESQLCLIENT14_VERSION}
+          key: ${POSTGRESQLCLIENT12_VERSION}
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -210,11 +210,11 @@ jobs:
           echo "runner.workspace: ${{ runner.workspace }}"
           echo "runner.os: ${{ runner.os }}"
           echo "runner.temp: ${{ runner.temp }}"
-          echo "POSTGRESQLCLIENT14_VERSION: ${POSTGRESQLCLIENT14_VERSION}"
+          echo "POSTGRESQLCLIENT12_VERSION: ${POSTGRESQLCLIENT12_VERSION}"
           set -x
           sudo apt-get update
           sudo apt-cache policy postgresql-client-12
-          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
+          sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT12_VERSION}"
       - name: Copy to Cache source
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
         env:
