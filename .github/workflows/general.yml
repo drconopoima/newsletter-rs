@@ -36,7 +36,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${POSTGRESQLCLIENT12_VERSION}
+          key: ${{ runner.os }}-12.9
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -120,7 +120,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${POSTGRESQLCLIENT12_VERSION}
+          key: ${{ runner.os }}-12.9
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -190,7 +190,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${POSTGRESQLCLIENT12_VERSION}
+          key: ${{ runner.os }}-12.9
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
