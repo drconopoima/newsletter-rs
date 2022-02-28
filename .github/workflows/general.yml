@@ -12,7 +12,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  POSTGRESQLCLIENT12_VERSION: "12.9-0ubuntu0.20.04.1"
+  POSTGRESQLCLIENT12_VERSION: "${{ secrets.POSTGRESQLCLIENT_VERSION }}"
 
 jobs:
   test:
@@ -36,7 +36,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${{ runner.os }}-12.9
+          key: ${{ runner.os }}-${{ secrets.POSTGRESQLCLIENT_VERSION }}
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -121,7 +121,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${{ runner.os }}-12.9
+          key: ${{ runner.os }}-${{ secrets.POSTGRESQLCLIENT_VERSION }}
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -192,7 +192,7 @@ jobs:
         id: cache-postgresqlclient12
         with:
           path: ${{ runner.temp }}/postgresql-client-12
-          key: ${{ runner.os }}-12.9
+          key: ${{ runner.os }}-${{ secrets.POSTGRESQLCLIENT_VERSION }}
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
