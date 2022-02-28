@@ -31,19 +31,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: Cache dependencies
-        id: cache-dependencies
+      - name: Cache postgresql-client-12
         uses: actions/cache@v2
+        id: cache-postgresqlclient12
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: ${{ runner.temp }}/postgresql-client-12
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
           override: true
       - name: Uninstall postgresql-client-12
@@ -65,12 +60,8 @@ jobs:
           sudo apt-get update
           sudo apt-cache policy postgresql-client-12
           sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
-      - name: Cache postgresql-client-12
-        uses: actions/cache@v2
-        id: cache-postgresqlclient12
+      - name: Copy to Cache source
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
-        with:
-          path: ${{ runner.temp }}/postgresql-client-12
         env:
           CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-12
         run: |
@@ -123,11 +114,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
+      - name: Cache postgresql-client-12
+        uses: actions/cache@v2
+        id: cache-postgresqlclient12
+        with:
+          path: ${{ runner.temp }}/postgresql-client-12
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
-          components: clippy
           toolchain: stable
           override: true
       - name: Uninstall postgresql-client-12
@@ -149,12 +143,8 @@ jobs:
           sudo apt-get update
           sudo apt-cache policy postgresql-client-12
           sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
-      - name: Cache postgresql-client-12
-        uses: actions/cache@v2
-        id: cache-postgresqlclient12
+      - name: Copy to Cache source
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
-        with:
-          path: ${{ runner.temp }}/postgresql-client-12
         env:
           CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-12
         run: |
@@ -193,7 +183,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
+      - name: Cache postgresql-client-12
+        uses: actions/cache@v2
+        id: cache-postgresqlclient12
+        with:
+          path: ${{ runner.temp }}/postgresql-client-12
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -218,12 +212,8 @@ jobs:
           sudo apt-get update
           sudo apt-cache policy postgresql-client-12
           sudo apt-get install -y postgresql-client-12="${POSTGRESQLCLIENT14_VERSION}"
-      - name: Cache postgresql-client-12
-        uses: actions/cache@v2
-        id: cache-postgresqlclient12
+      - name: Copy to Cache source
         if: steps.cache-postgresqlclient12.outputs.cache-hit != 'true'
-        with:
-          path: ${{ runner.temp }}/postgresql-client-12
         env:
           CACHE_SOURCE: ${{ runner.temp }}/postgresql-client-12
         run: |
