@@ -134,6 +134,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache postgresql-client-12
         uses: actions/cache@v2
         id: cache-postgresqlclient12
@@ -213,6 +214,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache postgresql-client-12
         uses: actions/cache@v2
         id: cache-postgresqlclient12
