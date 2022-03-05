@@ -76,20 +76,20 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let status = "pass";
     let output = "";
     let postgres_read = PostgresReadChecks {
-        status: status.to_string(),
-        time: now_string.to_string(),
-        output: output.to_string(),
+        status: status.to_owned(),
+        time: now_string.to_owned(),
+        output: output.to_owned(),
     };
     let postgres_write = PostgresWriteChecks {
-        status: status.to_string(),
-        time: now_string.to_string(),
-        pg_isinrecovery: "false".to_string(),
-        output: output.to_string(),
+        status: status.to_owned(),
+        time: now_string.to_owned(),
+        pg_isinrecovery: "false".to_owned(),
+        output: output.to_owned(),
     };
     let newsletter = NewsletterChecks {
-        status: status.to_string(),
+        status: status.to_owned(),
         time: now_string,
-        output: output.to_string(),
+        output: output.to_owned(),
     };
 
     let checks = ChecksObject {
@@ -99,9 +99,9 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     };
 
     let healthcheck = Healthcheck {
-        status: status.to_string(),
+        status: status.to_owned(),
         checks,
-        output: output.to_string(),
+        output: output.to_owned(),
     };
 
     HttpResponse::Ok().json(healthcheck)

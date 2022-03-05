@@ -17,35 +17,35 @@ async fn main() -> std::io::Result<()> {
                 config_file, error
             )
         });
-    let connection_string = &configuration.database.connection_string().to_string();
+    let connection_string = &configuration.database.connection_string().to_owned();
     let database_name = match configuration.database.database.as_ref() {
-        Some(database_name) => database_name.to_string(),
+        Some(database_name) => database_name.to_owned(),
         _ => {
-            let database_name = "newsletter".to_string();
+            let database_name = "newsletter".to_owned();
             println!("[WARNING]: Failed to retrieve a database name from settings, using default value '{}'", database_name);
-            database_name.to_string()
+            database_name.to_owned()
         }
     };
     let database_settings = DatabaseSettings {
         port: configuration.database.port,
-        host: configuration.database.host.to_string(),
-        username: configuration.database.username.to_string(),
-        password: configuration.database.password.to_string(),
-        database: Some(database_name.to_string()),
+        host: configuration.database.host.to_owned(),
+        username: configuration.database.username.to_owned(),
+        password: configuration.database.password.to_owned(),
+        database: Some(database_name.to_owned()),
     };
     let postgres_connection: Pool = match configuration.database_migration {
         Some(migration_settings) => {
             if migration_settings.migrate {
-                let mut folder = "./migrations".to_string();
+                let mut folder = "./migrations".to_owned();
                 if let Some(migration_folder) = migration_settings.folder {
                     folder = migration_folder;
                 }
                 migrate_database(database_settings, folder).await
             } else {
-                generate_connection_pool(connection_string.to_string())
+                generate_connection_pool(connection_string.to_owned())
             }
         }
-        _ => generate_connection_pool(connection_string.to_string()),
+        _ => generate_connection_pool(connection_string.to_owned()),
     };
     let (database_exists, _) =
         check_database_exists(database_name.as_str(), &configuration.database).await;
