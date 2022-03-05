@@ -1,8 +1,15 @@
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
 use std::time::SystemTime;
+use time::{error, format_description::well_known::Rfc3339, OffsetDateTime};
+
+fn to_rfc3339<T>(datetime: T) -> Result<String, error::Format>
+where
+    T: Into<OffsetDateTime>,
+{
+    datetime.into().format(&Rfc3339)
+}
 
 // Healthcheck response format for HTTP APIs https://inadarei.github.io/rfc-healthcheck/
 #[derive(serde::Serialize)]
@@ -94,8 +101,7 @@ fn postgres_read_write_fail_healthcheck(
 
 pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let now_systemtime = SystemTime::now();
-    let now_datetime: DateTime<Utc> = now_systemtime.into();
-    let now_string = now_datetime.to_rfc3339();
+    let now_string = to_rfc3339(now_systemtime).unwrap();
     let status_pass = "pass";
     let status_fail = "fail";
     let status_warn = "warn";
