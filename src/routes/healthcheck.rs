@@ -78,6 +78,26 @@ fn get_healthcheck_object(
     }
 }
 
+fn postgres_read_write_fail_healthcheck(
+    status_fail: &str,
+    status_warn: &str,
+    now_string: &str,
+    output: &str
+) -> HealthcheckObject {
+    let postgres_read_status = status_fail;
+    let postgres_write_status = status_fail;
+    let global_status = status_warn;
+    let postgres_read = postgres_read_checks(postgres_read_status, None, output);
+    let postgres_write = postgres_write_checks(postgres_write_status, None, None, output);
+    get_healthcheck_object(
+        global_status,
+        now_string,
+        "",
+        postgres_read,
+        postgres_write,
+    )
+}
+
 pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let now_systemtime = SystemTime::now();
     let now_datetime: DateTime<Utc> = now_systemtime.into();
@@ -86,11 +106,6 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let status_fail = "fail";
     let status_warn = "warn";
     let output_pass = "";
-    let global_status: &str;
-    let postgres_read: PostgresReadChecks;
-    let postgres_write: PostgresWriteChecks;
-    let postgres_read_status: &str;
-    let postgres_write_status: &str;
     let postgres_pool_error = "DB pool error.";
     let optional_postgres_pool: Option<&Arc<Pool>> = match request.app_data::<Arc<Pool>>() {
         Some(postgres_pool) => Some(postgres_pool),
@@ -99,20 +114,8 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
             None
         }
     };
-    if optional_postgres_pool.is_none() {
-        postgres_read_status = status_fail;
-        postgres_write_status = status_fail;
-        global_status = status_warn;
-        postgres_read = postgres_read_checks(postgres_read_status, None, postgres_pool_error);
-        postgres_write =
-            postgres_write_checks(postgres_write_status, None, None, postgres_pool_error);
-        return HttpResponse::Ok().json(get_healthcheck_object(
-            global_status,
-            &now_string,
-            output_pass,
-            postgres_read,
-            postgres_write,
-        ));
+    if optional_postgres_pool.is_none() {        
+        return HttpResponse::Ok().json(postgres_read_write_fail_healthcheck(status_fail, status_warn, &now_string, postgres_pool_error))
     }
     let postgres_pool = optional_postgres_pool.unwrap();
     let postgres_client_error = "DB client error";
@@ -124,29 +127,36 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         }
     };
     if optional_postgres_client.is_none() {
-        postgres_read_status = status_fail;
-        postgres_write_status = status_fail;
-        global_status = status_warn;
-        postgres_read = postgres_read_checks(postgres_read_status, None, postgres_client_error);
-        postgres_write =
-            postgres_write_checks(postgres_write_status, None, None, postgres_client_error);
-        return HttpResponse::Ok().json(get_healthcheck_object(
-            global_status,
-            &now_string,
-            output_pass,
-            postgres_read,
-            postgres_write,
-        ));
+        return HttpResponse::Ok().json(postgres_read_write_fail_healthcheck(status_fail, status_warn, &now_string, postgres_client_error))
     }
-    let _postgres_client = optional_postgres_client.unwrap();
-    postgres_read_status = status_pass;
-    postgres_write_status = status_pass;
-    global_status = status_pass;
-    postgres_read = postgres_read_checks(postgres_read_status, None, "");
-    postgres_write = postgres_write_checks(postgres_write_status, None, None, "");
+    let postgres_client = optional_postgres_client.unwrap();
+    let statement_error = "DB statement error.";
+    let statement_read = match postgres_client
+        .prepare_cached(
+            r#"
+                SELECT clock_timestamp(),pg_is_in_recovery()
+            "#,
+        )
+        .await
+    {
+        Ok(statement) => Some(statement),
+        Err(error) => {
+            tracing::error!(
+                "Failed to prepare cached healthcheck query: {}",
+                error
+            );
+            None
+        }
+    };
+    if statement_read.is_none() {
+        return HttpResponse::Ok().json(postgres_read_write_fail_healthcheck(status_fail, status_warn, &now_string, statement_error))
+    }
+
+    let postgres_read = postgres_read_checks(status_pass, None, "");
+    let postgres_write = postgres_write_checks(status_pass, None, None, "");
 
     HttpResponse::Ok().json(get_healthcheck_object(
-        global_status,
+        status_pass,
         &now_string,
         output_pass,
         postgres_read,
