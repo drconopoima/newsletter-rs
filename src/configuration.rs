@@ -48,7 +48,7 @@ impl DatabaseSettings {
         )
     }
 }
-// Read top-level configuration file with compatible extension YAML,JSON...
+// Read top-level configuration file with extension YAML...
 pub fn get_configuration(filename: &str) -> Result<ApplicationSettings, config::ConfigError> {
     // Initialize configuration reader
     let builder = Config::builder()

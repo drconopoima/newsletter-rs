@@ -4,10 +4,10 @@
 ┌─────────────────────────────────┐
 │  newsletter.subscription        │
 ├─────────────────────────────────┤
-│  id: uuid (PK)                  │
-│  email: citext                  │
-│  name: text                     │
-│  subscription_date: timestamptz │
+│ id: uuid (PK)                   │
+│ email: citext                   │
+│ name: text                      │
+│ subscription_date: timestamptz  │
 └─────────────────────────────────┘
 ```
 
@@ -15,18 +15,19 @@
 ┌─────────────────────────────────┐
 │  _initialization_migrations     │
 ├─────────────────────────────────┤
-│  version: serial (PK)           │
-│  filename: text                 │
-│  installed_on: timestamptz      │
-|  md5_hash: uuid                 |
+│ version: serial (PK)            │
+│ filename: text                  │
+│ installed_on: timestamptz       │
+| md5_hash: uuid                  |
 └─────────────────────────────────┘
 ```
 
 ```text
-┌─────────────────────────────┐
-│  _healthcheck               │
-├─────────────────────────────┤
-|  id: bool (PK, check)       |
-│  datetime: timestamptz      │
-└─────────────────────────────┘
+┌────────────────────────────────┐
+│  _healthcheck                  │
+├────────────────────────────────┤
+| id: bool (PK)                  |
+│ datetime: timestamptz          │
+| updated_by: char varying(126)  |
+└────────────────────────────────┘
 ```
