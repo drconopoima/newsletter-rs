@@ -1,3 +1,6 @@
+use super::healthcheck_structs::{
+    ChecksObject, HealthcheckObject, PostgresReadChecks, PostgresWriteChecks,
+};
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
@@ -9,39 +12,6 @@ where
     T: Into<OffsetDateTime>,
 {
     datetime.into().format(&Rfc3339)
-}
-
-// Healthcheck response format for HTTP APIs https://inadarei.github.io/rfc-healthcheck/
-#[derive(serde::Serialize)]
-pub struct HealthcheckObject {
-    pub status: String,
-    pub checks: ChecksObject,
-    pub output: String,
-    pub time: String,
-    pub version: String,
-}
-
-#[derive(serde::Serialize)]
-pub struct ChecksObject {
-    pub postgres_read: PostgresReadChecks,
-    pub postgres_write: PostgresWriteChecks,
-}
-
-#[derive(serde::Serialize)]
-
-pub struct PostgresReadChecks {
-    pub status: String,
-    pub time: Option<String>,
-    pub output: String,
-}
-
-#[derive(serde::Serialize)]
-
-pub struct PostgresWriteChecks {
-    pub status: String,
-    pub time: Option<String>,
-    pub pg_is_in_recovery: Option<bool>,
-    pub output: String,
 }
 
 fn postgres_read_checks(status: &str, time: Option<String>, output: &str) -> PostgresReadChecks {

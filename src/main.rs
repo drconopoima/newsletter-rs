@@ -8,6 +8,7 @@ use newsletter_rs::{
     startup::run,
 };
 use std::net::TcpListener;
+use std::time::Duration;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -74,11 +75,22 @@ async fn main() -> std::io::Result<()> {
             ));
         }
     }
+    let healthcheck_cache_validity_ms: u32;
+    if configuration.healthcheck_cache_validity_ms.is_some() {
+        healthcheck_cache_validity_ms = configuration.healthcheck_cache_validity_ms.unwrap();
+    } else {
+        healthcheck_cache_validity_ms = 2000;
+    }
     // env_logger init() to call set_logger. RUST_LOG to customize logging level
     Builder::from_env(Env::default().default_filter_or("info")).init();
     // Run server on TcpListener
-    let (server1, server2): (Server, Option<Server>) =
-        run(listener, postgres_connection, admin_bind_address).unwrap();
+    let (server1, server2): (Server, Option<Server>) = run(
+        listener,
+        postgres_connection,
+        admin_bind_address,
+        Duration::from_millis(healthcheck_cache_validity_ms.into()),
+    )
+    .unwrap();
     if server2.is_some() {
         future::try_join(server1, server2.unwrap()).await?;
         return Ok(());
