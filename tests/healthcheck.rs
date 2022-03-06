@@ -46,7 +46,7 @@ async fn launch_http_server() -> ServerPostgres {
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
     let (server, _): (Server, _) =
-        newsletter_rs::startup::run(listener, postgres_pool.clone(), None)
+        newsletter_rs::startup::run(listener, postgres_pool.clone(), None, None)
             .expect("Failed to listen on address");
     let _ = tokio::spawn(server);
     ServerPostgres {

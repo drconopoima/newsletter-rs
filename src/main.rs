@@ -88,7 +88,7 @@ async fn main() -> std::io::Result<()> {
         listener,
         postgres_connection,
         admin_bind_address,
-        Duration::from_millis(healthcheck_cache_validity_ms.into()),
+        Some(Duration::from_millis(healthcheck_cache_validity_ms.into())),
     )
     .unwrap();
     if server2.is_some() {

@@ -9,9 +9,12 @@ use std::sync::RwLock;
 use std::time::Duration;
 use time::OffsetDateTime;
 
+pub struct HealthcheckCache {
+    pub valid_until: OffsetDateTime,
+    pub healthcheck: HealthcheckObject,
+}
 pub struct CachedHealthcheck {
-    pub valid_until: Option<OffsetDateTime>,
-    pub healthcheck: Option<HealthcheckObject>,
+    pub cache: Option<HealthcheckCache>,
     pub validity_period: Duration,
 }
 
@@ -19,12 +22,18 @@ pub fn run(
     listener: TcpListener,
     postgres_pool: Pool,
     admin_bind_address: Option<(String, u16)>,
-    healthcheck_validity_period: Duration,
+    healthcheck_validity_period_ms: Option<Duration>,
 ) -> Result<(Server, Option<Server>), std::io::Error> {
     let postgres_pool = Arc::new(postgres_pool);
-    let cached_healthcheck = CachedHealthcheck {
-        valid_until: None,
-        healthcheck: None,
+    let cached_healthcheck: CachedHealthcheck;
+    let healthcheck_validity_period: Duration;
+    if let Some(healthcheck_validity) = healthcheck_validity_period_ms {
+        healthcheck_validity_period = healthcheck_validity;
+    } else {
+        healthcheck_validity_period = Duration::from_millis(1000);
+    }
+    cached_healthcheck = CachedHealthcheck {
+        cache: None,
         validity_period: healthcheck_validity_period,
     };
     let arc_cached_healthcheck: Arc<RwLock<CachedHealthcheck>> =
