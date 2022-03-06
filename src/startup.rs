@@ -15,14 +15,13 @@ pub fn run(
     healthcheck_validity_period_ms: Option<Duration>,
 ) -> Result<(Server, Option<Server>), std::io::Error> {
     let postgres_pool = Arc::new(postgres_pool);
-    let cached_healthcheck: CachedHealthcheck;
-    let healthcheck_validity_period: Duration;
-    if let Some(healthcheck_validity) = healthcheck_validity_period_ms {
-        healthcheck_validity_period = healthcheck_validity;
-    } else {
-        healthcheck_validity_period = Duration::from_millis(1000);
-    }
-    cached_healthcheck = CachedHealthcheck {
+    let healthcheck_validity_period: Duration =
+        if let Some(healthcheck_validity) = healthcheck_validity_period_ms {
+            healthcheck_validity
+        } else {
+            Duration::from_millis(1000)
+        };
+    let cached_healthcheck = CachedHealthcheck {
         cache: None,
         validity_period: healthcheck_validity_period,
     };
