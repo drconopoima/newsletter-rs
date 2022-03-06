@@ -1,5 +1,7 @@
+use actix_web::dev::Server;
 use deadpool_postgres::Pool;
 use env_logger::{Builder, Env};
+use futures::future;
 use newsletter_rs::{
     configuration::{get_configuration, ApplicationSettings, DatabaseSettings},
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
@@ -53,10 +55,34 @@ async fn main() -> std::io::Result<()> {
         panic!("[ERROR]: Database '{}' doesn't exist and the database_migration.migrate property was set to false", database_name.as_str());
     }
     // Raises if failed to bind address
-    let bind_address: (&str, u16) = ("127.0.0.1", configuration.application_port);
+    let bind_address = (
+        configuration.application_address.to_owned(),
+        configuration.application_port,
+    );
     let listener = TcpListener::bind(bind_address)?;
+    let mut admin_bind_address = None;
+    if configuration.admin_port.is_some() {
+        if configuration.admin_address.is_some() {
+            admin_bind_address = Some((
+                configuration.admin_address.unwrap(),
+                configuration.admin_port.unwrap(),
+            ));
+        } else {
+            admin_bind_address = Some((
+                configuration.application_address.to_owned(),
+                configuration.admin_port.unwrap(),
+            ));
+        }
+    }
     // env_logger init() to call set_logger. RUST_LOG to customize logging level
     Builder::from_env(Env::default().default_filter_or("info")).init();
     // Run server on TcpListener
-    run(listener, postgres_connection)?.await
+    let (server1, server2): (Server, Option<Server>) =
+        run(listener, postgres_connection, admin_bind_address).unwrap();
+    if server2.is_some() {
+        future::try_join(server1, server2.unwrap()).await?;
+        return Ok(());
+    }
+    server1.await?;
+    Ok(())
 }

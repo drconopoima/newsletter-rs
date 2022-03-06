@@ -20,6 +20,7 @@ actix-web = { version="^4" }
 serde = {version = "^1", features=["derive"]}
 tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
 config = { version="^0.12", default-features = false, features = ["yaml"] }
+futures = { version="^0.3" }
 tokio-postgres = { version="^0.7", features=[ "with-uuid-0_8" , "with-time-0_3" ] }
 uuid = { version = "^0.8", features = ["v4"] }
 regex = { version = "^1" }

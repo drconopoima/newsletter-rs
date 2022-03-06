@@ -1018,6 +1018,7 @@ dependencies = [
  "config",
  "deadpool-postgres",
  "env_logger",
+ "futures",
  "md5",
  "regex",
  "reqwest",

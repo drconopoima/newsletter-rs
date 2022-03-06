@@ -45,11 +45,11 @@ pub struct PostgresWriteChecks {
 }
 
 fn postgres_read_checks(status: &str, time: Option<String>, output: &str) -> PostgresReadChecks {
-    return PostgresReadChecks {
+    PostgresReadChecks {
         status: status.to_owned(),
         time,
         output: output.to_owned(),
-    };
+    }
 }
 
 fn postgres_write_checks(
@@ -58,12 +58,12 @@ fn postgres_write_checks(
     pg_is_in_recovery: Option<bool>,
     output: &str,
 ) -> PostgresWriteChecks {
-    return PostgresWriteChecks {
+    PostgresWriteChecks {
         status: status.to_owned(),
         time,
         pg_is_in_recovery,
         output: output.to_owned(),
-    };
+    }
 }
 
 fn get_healthcheck_object(

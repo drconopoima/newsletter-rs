@@ -1,3 +1,4 @@
+use actix_web::dev::Server;
 use deadpool_postgres::Pool;
 use newsletter_rs::{
     configuration::{get_configuration, MigrationSettings},
@@ -44,8 +45,9 @@ async fn launch_http_server() -> ServerPostgres {
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let server = newsletter_rs::startup::run(listener, postgres_pool.clone())
-        .expect("Failed to listen on address");
+    let (server, _): (Server, _) =
+        newsletter_rs::startup::run(listener, postgres_pool.clone(), None)
+            .expect("Failed to listen on address");
     let _ = tokio::spawn(server);
     ServerPostgres {
         address: format!("http://{}:{}", local_addr, port),

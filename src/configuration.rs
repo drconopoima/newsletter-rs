@@ -3,7 +3,10 @@ use config::{Config, File, FileFormat};
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
     pub database: DatabaseSettings,
+    pub application_address: String,
     pub application_port: u16,
+    pub admin_address: Option<String>,
+    pub admin_port: Option<u16>,
     pub database_migration: Option<MigrationSettings>,
 }
 

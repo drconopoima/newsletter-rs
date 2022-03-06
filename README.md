@@ -74,7 +74,7 @@ curl -s -w'%{http_code}' "http://127.0.0.1:8000/subscription" -d "email=email%40
 Test correct operation by using `/healthcheck` endpoint
 
 ```bash
-curl -s -w'\n%{http_code}' http://127.0.0.1:8000/healthcheck | jq '.'
+curl -s -w'\n%{http_code}' http://127.0.0.1:65080/healthcheck | jq '.'
 ```
 
 ```text
