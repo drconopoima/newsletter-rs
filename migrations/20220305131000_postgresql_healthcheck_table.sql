@@ -27,6 +27,8 @@ BEGIN
 END
 $do$;
 
+GRANT ALL PRIVILEGES ON SCHEMA newsletter to newsletter;
+
 ALTER TABLE newsletter.subscription
 OWNER TO newsletter;
 
