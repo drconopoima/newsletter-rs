@@ -75,11 +75,13 @@ async fn main() -> std::io::Result<()> {
             ));
         }
     }
-    let healthcheck_cache_validity_ms: u32 =
+    let healthcheck_cache_validity_ms: Option<Duration> =
         if configuration.healthcheck_cache_validity_ms.is_some() {
-            configuration.healthcheck_cache_validity_ms.unwrap()
+            Some(Duration::from_millis(
+                configuration.healthcheck_cache_validity_ms.unwrap().into(),
+            ))
         } else {
-            1000
+            None
         };
     // env_logger init() to call set_logger. RUST_LOG to customize logging level
     Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -88,7 +90,7 @@ async fn main() -> std::io::Result<()> {
         listener,
         postgres_connection,
         admin_bind_address,
-        Some(Duration::from_millis(healthcheck_cache_validity_ms.into())),
+        healthcheck_cache_validity_ms,
     )
     .unwrap();
     if server2.is_some() {

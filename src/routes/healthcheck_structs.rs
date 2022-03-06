@@ -33,6 +33,7 @@ pub struct PostgresReadChecks {
     pub status: String,
     pub time: Option<String>,
     pub output: String,
+    pub version: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -42,4 +43,5 @@ pub struct PostgresWriteChecks {
     pub time: Option<String>,
     pub pg_is_in_recovery: Option<bool>,
     pub output: String,
+    pub version: Option<String>,
 }

@@ -15,10 +15,16 @@ where
     datetime.into().format(&Rfc3339)
 }
 
-fn postgres_read_checks(status: &str, time: Option<String>, output: &str) -> PostgresReadChecks {
+fn postgres_read_checks(
+    status: &str,
+    time: Option<String>,
+    pg_version: Option<String>,
+    output: &str,
+) -> PostgresReadChecks {
     PostgresReadChecks {
         status: status.to_owned(),
         time,
+        version: pg_version,
         output: output.to_owned(),
     }
 }
@@ -27,12 +33,14 @@ fn postgres_write_checks(
     status: &str,
     time: Option<String>,
     pg_is_in_recovery: Option<bool>,
+    pg_version: Option<String>,
     output: &str,
 ) -> PostgresWriteChecks {
     PostgresWriteChecks {
         status: status.to_owned(),
         time,
         pg_is_in_recovery,
+        version: pg_version,
         output: output.to_owned(),
     }
 }
@@ -67,8 +75,8 @@ fn postgres_read_write_fail_healthcheck(
     let postgres_read_status = status_fail;
     let postgres_write_status = status_fail;
     let global_status = status_warn;
-    let postgres_read = postgres_read_checks(postgres_read_status, None, output);
-    let postgres_write = postgres_write_checks(postgres_write_status, None, None, output);
+    let postgres_read = postgres_read_checks(postgres_read_status, None, None, output);
+    let postgres_write = postgres_write_checks(postgres_write_status, None, None, None, output);
     get_healthcheck_object(global_status, now_string, "", postgres_read, postgres_write)
 }
 
@@ -136,7 +144,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let statement_read = match postgres_client
         .prepare_cached(
             r#"
-                SELECT clock_timestamp() as datetime,pg_is_in_recovery() as recovery
+                SELECT clock_timestamp() as datetime,pg_is_in_recovery() as recovery,version() as pg_version
             "#,
         )
         .await
@@ -175,9 +183,11 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let postgres_read_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
     let postgres_read_timestamp_string = to_rfc3339(postgres_read_timestamp).unwrap();
     let postgres_recovery: bool = row_results[0].get(&"recovery");
+    let postgres_version: &str = row_results[0].get(&"pg_version");
     let postgres_read = postgres_read_checks(
         status_pass,
         Some(postgres_read_timestamp_string.to_owned()),
+        Some(postgres_version.to_owned()),
         output_pass,
     );
     let statement_write_error = "DB write statement error.";
@@ -205,6 +215,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
             status_fail,
             None,
             Some(postgres_recovery),
+            Some(postgres_version.to_owned()),
             statement_write_error,
         );
 
@@ -229,8 +240,13 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         }
     };
     if optional_row.is_none() {
-        postgres_write =
-            postgres_write_checks(status_fail, None, Some(postgres_recovery), write_error);
+        postgres_write = postgres_write_checks(
+            status_fail,
+            None,
+            Some(postgres_recovery),
+            Some(postgres_version.to_owned()),
+            write_error,
+        );
 
         return HttpResponse::Ok().json(get_healthcheck_object(
             status_warn,
@@ -247,6 +263,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         status_pass,
         Some(postgres_write_timestamp_string),
         Some(postgres_recovery),
+        Some(postgres_version.to_owned()),
         output_pass,
     );
 
