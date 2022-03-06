@@ -49,7 +49,6 @@ pub fn run(
     let admin_bind_address = admin_bind_address.unwrap();
     let admin_listener = TcpListener::bind(admin_bind_address)?;
     let postgres_pool1 = postgres_pool.clone();
-    let arc_cached_healthcheck1 = arc_cached_healthcheck.clone();
     let server1 = HttpServer::new(move || {
         App::new()
             // Logging middleware
@@ -58,8 +57,6 @@ pub fn run(
             .route("/subscription", web::post().to(subscription))
             // Register the Postgres connection as part of application state
             .app_data(postgres_pool1.clone())
-            // Register cache for healthcheck endpoint
-            .app_data(arc_cached_healthcheck1.clone())
     })
     .listen(listener)?
     .run();
