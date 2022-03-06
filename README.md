@@ -65,16 +65,41 @@ Run application using `cargo`:
 cargo run
 ```
 
-Test correct initialization by using `/healthcheck` endpoint
-
-```bash
-curl -s -w'%{http_code}' http://127.0.0.1:8000/healthcheck
-```
-
 Send subscription entries by using the `/subscription` endpoint
 
 ```bash
 curl -s -w'%{http_code}' "http://127.0.0.1:8000/subscription" -d "email=email%40drconopoima.com&name=Jane%20Doe"
+```
+
+Test correct operation by using `/healthcheck` endpoint
+
+```bash
+curl -s -w'\n%{http_code}' http://127.0.0.1:65080/healthcheck | jq '.'
+```
+
+```text
+{
+  "status": "pass",
+  "checks": {
+    "postgres_read": {
+      "status": "pass",
+      "time": "2022-03-06T23:32:10.555806Z",
+      "output": "",
+      "version": "PostgreSQL 14.2 (Debian 14.2-1.pgdg110+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit"
+    },
+    "postgres_write": {
+      "status": "pass",
+      "time": "2022-03-06T23:32:10.556877Z",
+      "pg_is_in_recovery": false,
+      "output": "",
+      "version": "PostgreSQL 14.2 (Debian 14.2-1.pgdg110+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit"
+    }
+  },
+  "output": "",
+  "time": "2022-03-06T23:32:10.547917389Z",
+  "version": "0.1.0"
+}
+200
 ```
 
 ### Customize logging level

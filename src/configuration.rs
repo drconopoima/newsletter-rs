@@ -3,7 +3,11 @@ use config::{Config, File, FileFormat};
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
     pub database: DatabaseSettings,
+    pub application_address: String,
     pub application_port: u16,
+    pub healthcheck_cache_validity_ms: Option<u32>,
+    pub admin_address: Option<String>,
+    pub admin_port: Option<u16>,
     pub database_migration: Option<MigrationSettings>,
 }
 
@@ -48,7 +52,7 @@ impl DatabaseSettings {
         )
     }
 }
-// Read top-level configuration file with compatible extension YAML,JSON...
+// Read top-level configuration file with extension YAML...
 pub fn get_configuration(filename: &str) -> Result<ApplicationSettings, config::ConfigError> {
     // Initialize configuration reader
     let builder = Config::builder()

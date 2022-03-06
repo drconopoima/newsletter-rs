@@ -65,7 +65,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
     let database_name: &str = database_settings.database.as_ref().unwrap().as_str();
     let (exists, postgres_client) = check_database_exists(database_name, database_settings).await;
     if exists {
-        database_settings.database = Some(database_name.to_string());
+        database_settings.database = Some(database_name.to_owned());
     } else {
         let create_database_query = format!("CREATE DATABASE \"{}\"", database_name);
         run_simple_query(&postgres_client, &create_database_query)

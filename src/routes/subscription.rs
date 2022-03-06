@@ -14,7 +14,6 @@ pub async fn subscription(
     request: HttpRequest,
     form: web::Form<SubscriptionFormData>,
 ) -> impl Responder {
-    let generated_uuid: Uuid = Uuid::new_v4();
     let optional_postgres_pool: Option<&Arc<Pool>> = match request.app_data::<Arc<Pool>>() {
         Some(postgres_pool) => Some(postgres_pool),
         None => {
@@ -68,6 +67,7 @@ pub async fn subscription(
     if statement.is_none() {
         return HttpResponse::InternalServerError().finish();
     }
+    let generated_uuid: Uuid = Uuid::new_v4();
     match postgres_client
         .query(
             &statement.unwrap(),

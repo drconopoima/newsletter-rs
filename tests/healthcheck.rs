@@ -1,3 +1,4 @@
+use actix_web::dev::Server;
 use deadpool_postgres::Pool;
 use newsletter_rs::{
     configuration::{get_configuration, MigrationSettings},
@@ -22,12 +23,13 @@ async fn launch_http_server() -> ServerPostgres {
     });
     let migration_settings = MigrationSettings {
         migrate: true,
-        folder: Some("./migrations".to_string()),
+        folder: Some("./migrations".to_owned()),
     };
     configuration.database_migration = Some(migration_settings);
     let isolated_database_name = Uuid::new_v4().to_string();
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
-    configuration.database.database = Some(uuid_without_hyphens.to_string());
+    configuration.database.database = Some(uuid_without_hyphens.to_owned());
+    configuration.database.username = "postgres".to_owned();
     let postgres_pool: Pool = migrate_database(
         configuration.database,
         configuration
@@ -37,15 +39,16 @@ async fn launch_http_server() -> ServerPostgres {
             .folder
             .as_ref()
             .unwrap()
-            .to_string(),
+            .to_owned(),
     )
     .await;
     let local_addr = "127.0.0.1";
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let server = newsletter_rs::startup::run(listener, postgres_pool.clone())
-        .expect("Failed to listen on address");
+    let (server, _): (Server, _) =
+        newsletter_rs::startup::run(listener, postgres_pool.clone(), None, None)
+            .expect("Failed to listen on address");
     let _ = tokio::spawn(server);
     ServerPostgres {
         address: format!("http://{}:{}", local_addr, port),
@@ -75,8 +78,6 @@ async fn healthcheck_endpoint() {
     // Assert
     // Status 200 OK
     assert!(response.status().is_success());
-    // Empty Body
-    assert_eq!(Some(0), response.content_length());
 }
 
 #[tokio::test]
@@ -87,8 +88,8 @@ async fn subscription_200_valid_form_data() {
     let email_field = "email_nobody_has@drconopoima.com";
     let name_field = "Jane Doe";
     let body = Body {
-        email: email_field.to_string(),
-        name: name_field.to_string(),
+        email: email_field.to_owned(),
+        name: name_field.to_owned(),
     };
     let body_encoded = serde_urlencoded::to_string(&body).unwrap();
     let subscriptions_route = &format!("{}/subscription", server_postgres.address);
