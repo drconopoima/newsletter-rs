@@ -140,7 +140,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         ));
     }
     let postgres_client = optional_postgres_client.unwrap();
-    let statement_error = "DB statement error.";
+    let statement_read_error = "DB read statement error.";
     let statement_read = match postgres_client
         .prepare_cached(
             r#"
@@ -151,7 +151,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     {
         Ok(statement) => Some(statement),
         Err(error) => {
-            tracing::error!("Failed to prepare cached healthcheck query: {}", error);
+            tracing::error!("Failed to prepare cached healthcheck read query: {}", error);
             None
         }
     };
@@ -160,7 +160,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
             status_fail,
             status_warn,
             &now_string,
-            statement_error,
+            statement_read_error,
         ));
     }
     let read_error = "DB read error.";
@@ -180,16 +180,83 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         ));
     }
     let row_results = optional_row.unwrap();
-    let postgres_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
+    let postgres_read_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
+    let postgres_read_timestamp_string = to_rfc3339(postgres_read_timestamp).unwrap();
     let postgres_recovery: bool = row_results[0].get(&"recovery");
-    let postgres_timestamp_string = to_rfc3339(postgres_timestamp).unwrap();
     let postgres_read = postgres_read_checks(
         status_pass,
-        Some(postgres_timestamp_string.to_owned()),
+        Some(postgres_read_timestamp_string.to_owned()),
         output_pass,
     );
-    let postgres_write =
-        postgres_write_checks(status_pass, None, Some(postgres_recovery), output_pass);
+    let statement_write_error = "DB write statement error.";
+    let statement_write = match postgres_client
+        .prepare_cached(
+            r#"
+                UPDATE _healthcheck set updated_by=$1
+                WHERE id=true RETURNING datetime
+            "#,
+        )
+        .await
+    {
+        Ok(statement) => Some(statement),
+        Err(error) => {
+            tracing::error!(
+                "Failed to prepare cached healthcheck write query: {}",
+                error
+            );
+            None
+        }
+    };
+    let postgres_write: PostgresWriteChecks;
+    if statement_write.is_none() {
+        postgres_write = postgres_write_checks(
+            status_fail,
+            None,
+            Some(postgres_recovery),
+            statement_write_error,
+        );
+
+        return HttpResponse::Ok().json(get_healthcheck_object(
+            status_warn,
+            &now_string,
+            output_pass,
+            postgres_read,
+            postgres_write,
+        ));
+    }
+    let updated_by_parameter = format!("newsletter-rs {}", &now_string);
+    let write_error = "DB write error.";
+    let optional_row = match postgres_client
+        .query(&statement_write.unwrap(), &[&updated_by_parameter])
+        .await
+    {
+        Ok(row) => Some(row),
+        Err(error) => {
+            tracing::warn!("Failed healthcheck query: {}", error);
+            None
+        }
+    };
+    if optional_row.is_none() {
+        postgres_write =
+            postgres_write_checks(status_fail, None, Some(postgres_recovery), write_error);
+
+        return HttpResponse::Ok().json(get_healthcheck_object(
+            status_warn,
+            &now_string,
+            output_pass,
+            postgres_read,
+            postgres_write,
+        ));
+    }
+    let row_results = optional_row.unwrap();
+    let postgres_write_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
+    let postgres_write_timestamp_string = to_rfc3339(postgres_write_timestamp).unwrap();
+    postgres_write = postgres_write_checks(
+        status_pass,
+        Some(postgres_write_timestamp_string),
+        Some(postgres_recovery),
+        output_pass,
+    );
 
     HttpResponse::Ok().json(get_healthcheck_object(
         status_pass,
