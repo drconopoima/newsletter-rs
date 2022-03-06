@@ -1,9 +1,10 @@
 use super::healthcheck_structs::{
-    ChecksObject, HealthcheckObject, PostgresReadChecks, PostgresWriteChecks,
+    CachedHealthcheck, ChecksObject, HealthcheckCache, HealthcheckObject, PostgresReadChecks,
+    PostgresWriteChecks,
 };
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use deadpool_postgres::Pool;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 use time::{error, format_description::well_known::Rfc3339, OffsetDateTime};
 
@@ -72,12 +73,31 @@ fn postgres_read_write_fail_healthcheck(
 }
 
 pub async fn healthcheck(request: HttpRequest) -> impl Responder {
-    let now_systemtime = SystemTime::now();
-    let now_string = to_rfc3339(now_systemtime).unwrap();
     let status_pass = "pass";
     let status_fail = "fail";
     let status_warn = "warn";
     let output_pass = "";
+    let optional_cache_rwlock: Option<&Arc<RwLock<CachedHealthcheck>>> =
+        match request.app_data::<Arc<RwLock<CachedHealthcheck>>>() {
+            Some(cache_rwlock) => Some(cache_rwlock),
+            None => {
+                tracing::error!("Could not retrieve cached healthcheck from app_data.");
+                None
+            }
+        };
+    let now_systemtime = SystemTime::now();
+    let now_string = to_rfc3339(now_systemtime).unwrap();
+    if optional_cache_rwlock.is_some() {
+        let cache_rwlock = optional_cache_rwlock.unwrap();
+        if let Ok(cache) = cache_rwlock.try_read() {
+            if let Some(healthcheck_cache) = &cache.cache {
+                if healthcheck_cache.valid_until > now_systemtime {
+                    return HttpResponse::Ok().json(&healthcheck_cache.healthcheck);
+                }
+            }
+        }
+    };
+
     let postgres_pool_error = "DB pool error.";
     let optional_postgres_pool: Option<&Arc<Pool>> = match request.app_data::<Arc<Pool>>() {
         Some(postgres_pool) => Some(postgres_pool),
@@ -230,11 +250,26 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         output_pass,
     );
 
-    HttpResponse::Ok().json(get_healthcheck_object(
+    let healthcheck = get_healthcheck_object(
         status_pass,
         &now_string,
         output_pass,
         postgres_read,
         postgres_write,
-    ))
+    );
+
+    if optional_cache_rwlock.is_some() {
+        let cache_rwlock = optional_cache_rwlock.unwrap();
+        if let Ok(mut cache) = cache_rwlock.try_write() {
+            let now_systemtime = SystemTime::now();
+            let valid_until: OffsetDateTime = (now_systemtime + cache.validity_period).into();
+            cache.cache = Some(HealthcheckCache {
+                healthcheck,
+                valid_until,
+            });
+            return HttpResponse::Ok().json(&cache.cache.as_ref().unwrap().healthcheck);
+        }
+    };
+
+    HttpResponse::Ok().json(&healthcheck)
 }

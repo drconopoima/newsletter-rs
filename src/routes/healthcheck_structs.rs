@@ -1,5 +1,18 @@
+use std::time::Duration;
+use time::OffsetDateTime;
+
+pub struct HealthcheckCache {
+    pub valid_until: OffsetDateTime,
+    pub healthcheck: HealthcheckObject,
+}
+
+pub struct CachedHealthcheck {
+    pub cache: Option<HealthcheckCache>,
+    pub validity_period: Duration,
+}
+
 // Healthcheck response format for HTTP APIs https://inadarei.github.io/rfc-healthcheck/
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize)]
 pub struct HealthcheckObject {
     pub status: String,
     pub checks: ChecksObject,
@@ -8,13 +21,13 @@ pub struct HealthcheckObject {
     pub version: String,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize)]
 pub struct ChecksObject {
     pub postgres_read: PostgresReadChecks,
     pub postgres_write: PostgresWriteChecks,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize)]
 
 pub struct PostgresReadChecks {
     pub status: String,
@@ -22,7 +35,7 @@ pub struct PostgresReadChecks {
     pub output: String,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize)]
 
 pub struct PostgresWriteChecks {
     pub status: String,

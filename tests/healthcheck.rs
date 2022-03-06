@@ -29,6 +29,7 @@ async fn launch_http_server() -> ServerPostgres {
     let isolated_database_name = Uuid::new_v4().to_string();
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
     configuration.database.database = Some(uuid_without_hyphens.to_owned());
+    configuration.database.username = "postgres".to_owned();
     let postgres_pool: Pool = migrate_database(
         configuration.database,
         configuration

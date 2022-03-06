@@ -1,4 +1,4 @@
-use crate::routes::healthcheck_structs::HealthcheckObject;
+use crate::routes::healthcheck_structs::CachedHealthcheck;
 use crate::routes::{healthcheck, subscription};
 use actix_web::middleware::Logger;
 use actix_web::{dev::Server, web, App, HttpServer};
@@ -7,16 +7,6 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
-use time::OffsetDateTime;
-
-pub struct HealthcheckCache {
-    pub valid_until: OffsetDateTime,
-    pub healthcheck: HealthcheckObject,
-}
-pub struct CachedHealthcheck {
-    pub cache: Option<HealthcheckCache>,
-    pub validity_period: Duration,
-}
 
 pub fn run(
     listener: TcpListener,
