@@ -75,12 +75,12 @@ async fn main() -> std::io::Result<()> {
             ));
         }
     }
-    let healthcheck_cache_validity_ms: u32;
-    if configuration.healthcheck_cache_validity_ms.is_some() {
-        healthcheck_cache_validity_ms = configuration.healthcheck_cache_validity_ms.unwrap();
-    } else {
-        healthcheck_cache_validity_ms = 2000;
-    }
+    let healthcheck_cache_validity_ms: u32 =
+        if configuration.healthcheck_cache_validity_ms.is_some() {
+            configuration.healthcheck_cache_validity_ms.unwrap()
+        } else {
+            1000
+        };
     // env_logger init() to call set_logger. RUST_LOG to customize logging level
     Builder::from_env(Env::default().default_filter_or("info")).init();
     // Run server on TcpListener
