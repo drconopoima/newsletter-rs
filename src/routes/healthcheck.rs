@@ -18,7 +18,7 @@ pub struct HealthcheckObject {
     pub checks: ChecksObject,
     pub output: String,
     pub time: String,
-    pub version: String
+    pub version: String,
 }
 
 #[derive(serde::Serialize)]
@@ -83,7 +83,7 @@ fn get_healthcheck_object(
         checks,
         time: time.to_owned(),
         output: output.to_owned(),
-        version: env!("CARGO_PKG_VERSION").to_owned()
+        version: env!("CARGO_PKG_VERSION").to_owned(),
     }
 }
 
