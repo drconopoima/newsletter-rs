@@ -39,7 +39,7 @@ pub struct PostgresReadChecks {
 pub struct PostgresWriteChecks {
     pub status: String,
     pub time: Option<String>,
-    pub pg_isinrecovery: Option<String>,
+    pub pg_is_in_recovery: Option<bool>,
     pub output: String,
 }
 
@@ -54,13 +54,13 @@ fn postgres_read_checks(status: &str, time: Option<String>, output: &str) -> Pos
 fn postgres_write_checks(
     status: &str,
     time: Option<String>,
-    pg_isinrecovery: Option<String>,
+    pg_is_in_recovery: Option<bool>,
     output: &str,
 ) -> PostgresWriteChecks {
     return PostgresWriteChecks {
         status: status.to_owned(),
         time,
-        pg_isinrecovery,
+        pg_is_in_recovery,
         output: output.to_owned(),
     };
 }
@@ -144,7 +144,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     let statement_read = match postgres_client
         .prepare_cached(
             r#"
-                SELECT clock_timestamp(),pg_is_in_recovery()
+                SELECT clock_timestamp() as datetime,pg_is_in_recovery() as recovery
             "#,
         )
         .await
@@ -163,9 +163,33 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
             statement_error,
         ));
     }
-
-    let postgres_read = postgres_read_checks(status_pass, None, "");
-    let postgres_write = postgres_write_checks(status_pass, None, None, "");
+    let read_error = "DB read error.";
+    let optional_row = match postgres_client.query(&statement_read.unwrap(), &[]).await {
+        Ok(row) => Some(row),
+        Err(error) => {
+            tracing::warn!("Failed healthcheck query: {}", error);
+            None
+        }
+    };
+    if optional_row.is_none() {
+        return HttpResponse::Ok().json(postgres_read_write_fail_healthcheck(
+            status_fail,
+            status_warn,
+            &now_string,
+            read_error,
+        ));
+    }
+    let row_results = optional_row.unwrap();
+    let postgres_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
+    let postgres_recovery: bool = row_results[0].get(&"recovery");
+    let postgres_timestamp_string = to_rfc3339(postgres_timestamp).unwrap();
+    let postgres_read = postgres_read_checks(
+        status_pass,
+        Some(postgres_timestamp_string.to_owned()),
+        output_pass,
+    );
+    let postgres_write =
+        postgres_write_checks(status_pass, None, Some(postgres_recovery), output_pass);
 
     HttpResponse::Ok().json(get_healthcheck_object(
         status_pass,

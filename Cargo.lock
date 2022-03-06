@@ -1214,6 +1214,7 @@ dependencies = [
  "bytes",
  "fallible-iterator",
  "postgres-protocol",
+ "time",
  "uuid",
 ]
 
