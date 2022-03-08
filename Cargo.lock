@@ -1078,6 +1078,7 @@ dependencies = [
  "deadpool-postgres",
  "exitfailure",
  "futures",
+ "lazy_static",
  "md5",
  "regex",
  "reqwest",
