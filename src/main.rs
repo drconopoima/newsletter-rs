@@ -1,6 +1,6 @@
 use actix_web::dev::Server;
 use deadpool_postgres::Pool;
-use env_logger::{Builder, Env};
+use exitfailure::ExitFailure;
 use futures::future;
 use newsletter_rs::{
     configuration::{get_configuration, ApplicationSettings, DatabaseSettings},
@@ -9,9 +9,21 @@ use newsletter_rs::{
 };
 use std::net::TcpListener;
 use std::time::Duration;
+use tracing::subscriber::set_global_default;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<(), ExitFailure> {
+    LogTracer::init()?;
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let formatting_layer = BunyanFormattingLayer::new("newsletter-rs".into(), std::io::stdout);
+    let subscriber = Registry::default()
+        .with(env_filter)
+        .with(JsonStorageLayer)
+        .with(formatting_layer);
+    set_global_default(subscriber)?;
     let config_file: &str = "configuration.yaml";
     let configuration: ApplicationSettings =
         get_configuration(config_file).unwrap_or_else(|error| {
@@ -83,8 +95,6 @@ async fn main() -> std::io::Result<()> {
         } else {
             None
         };
-    // env_logger init() to call set_logger. RUST_LOG to customize logging level
-    Builder::from_env(Env::default().default_filter_or("info")).init();
     // Run server on TcpListener
     let (server1, server2): (Server, Option<Server>) = run(
         listener,
