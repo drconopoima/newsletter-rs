@@ -1,6 +1,6 @@
 use actix_web::dev::Server;
+use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
-use anyhow::{Context,Result};
 use futures::future;
 use newsletter_rs::{
     configuration::{get_configuration, ApplicationSettings, DatabaseSettings},
@@ -30,7 +30,10 @@ async fn main() -> Result<()> {
         Some(database_name) => database_name.to_owned(),
         _ => {
             let database_name = "newsletter".to_owned();
-            tracing::warn!("Failed to retrieve a database name from settings, using default value '{}'", database_name);
+            tracing::warn!(
+                "Failed to retrieve a database name from settings, using default value '{}'",
+                database_name
+            );
             database_name.to_owned()
         }
     };
@@ -65,7 +68,14 @@ async fn main() -> Result<()> {
         configuration.application_address.to_owned(),
         configuration.application_port,
     );
-    let listener = TcpListener::bind(bind_address).with_context(|| format!("{}::main: Failed to open a TCP Listener on address '{}' and port '{}'.", env!("CARGO_PKG_NAME"), configuration.application_address.to_owned(),configuration.application_port))?;
+    let listener = TcpListener::bind(bind_address).with_context(|| {
+        format!(
+            "{}::main: Failed to open a TCP Listener on address '{}' and port '{}'.",
+            env!("CARGO_PKG_NAME"),
+            configuration.application_address.to_owned(),
+            configuration.application_port
+        )
+    })?;
     let mut admin_bind_address = None;
     if configuration.admin_port.is_some() {
         if configuration.admin_address.is_some() {
