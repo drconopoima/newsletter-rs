@@ -1,4 +1,4 @@
-use exitfailure::ExitFailure;
+use anyhow::{Result,Context};
 use tracing::{subscriber::set_global_default, Subscriber};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
@@ -16,7 +16,7 @@ pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Sen
 }
 
 /// Register a subscriber as global default to process span data.
-pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) -> Result<(), ExitFailure> {
+pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) -> Result<()> {
     LogTracer::init()?;
-    Ok(set_global_default(subscriber)?)
+    Ok(set_global_default(subscriber).with_context(|| format!("{}::telemetry::init_subscriber: Failed to initialize tracing subscriber", env!("CARGO_PKG_NAME")))?)
 }

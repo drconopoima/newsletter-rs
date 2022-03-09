@@ -1,6 +1,6 @@
 use actix_web::dev::Server;
 use deadpool_postgres::Pool;
-use exitfailure::ExitFailure;
+use anyhow::{Context,Result};
 use futures::future;
 use newsletter_rs::{
     configuration::{get_configuration, ApplicationSettings, DatabaseSettings},
@@ -12,9 +12,11 @@ use std::net::TcpListener;
 use std::time::Duration;
 
 #[actix_web::main]
-async fn main() -> Result<(), ExitFailure> {
-    let subscriber = telemetry::get_subscriber("newsletter-rs".to_owned(), "info".to_owned());
-    telemetry::init_subscriber(subscriber)?;
+async fn main() -> Result<()> {
+    let subscriber_name = env!("CARGO_PKG_NAME");
+    let env_filter = "info";
+    let subscriber = telemetry::get_subscriber(subscriber_name.to_owned(), env_filter.to_owned());
+    telemetry::init_subscriber(subscriber).with_context(|| format!("{}::main: Failed to initialize tracing subscriber with name '{}' and filter level '{}'", env!("CARGO_PKG_NAME"), subscriber_name, env_filter))?;
     let config_file: &str = "configuration.yaml";
     let configuration: ApplicationSettings =
         get_configuration(config_file).unwrap_or_else(|error| {
@@ -28,7 +30,7 @@ async fn main() -> Result<(), ExitFailure> {
         Some(database_name) => database_name.to_owned(),
         _ => {
             let database_name = "newsletter".to_owned();
-            println!("[WARNING]: Failed to retrieve a database name from settings, using default value '{}'", database_name);
+            tracing::warn!("Failed to retrieve a database name from settings, using default value '{}'", database_name);
             database_name.to_owned()
         }
     };
@@ -40,11 +42,11 @@ async fn main() -> Result<(), ExitFailure> {
         database: Some(database_name.to_owned()),
     };
     let postgres_connection: Pool = match configuration.database_migration {
-        Some(migration_settings) => {
+        Some(ref migration_settings) => {
             if migration_settings.migrate {
                 let mut folder = "./migrations".to_owned();
-                if let Some(migration_folder) = migration_settings.folder {
-                    folder = migration_folder;
+                if let Some(ref migration_folder) = migration_settings.folder {
+                    folder = migration_folder.to_owned();
                 }
                 migrate_database(database_settings, folder).await
             } else {
@@ -63,7 +65,7 @@ async fn main() -> Result<(), ExitFailure> {
         configuration.application_address.to_owned(),
         configuration.application_port,
     );
-    let listener = TcpListener::bind(bind_address)?;
+    let listener = TcpListener::bind(bind_address).with_context(|| format!("{}::main: Failed to open a TCP Listener on address '{}' and port '{}'.", env!("CARGO_PKG_NAME"), configuration.application_address.to_owned(),configuration.application_port))?;
     let mut admin_bind_address = None;
     if configuration.admin_port.is_some() {
         if configuration.admin_address.is_some() {
