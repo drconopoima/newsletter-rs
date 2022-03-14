@@ -3,8 +3,9 @@ use deadpool_postgres::Pool;
 use newsletter_rs::{
     configuration::{get_configuration, MigrationSettings},
     postgres::migrate_database,
-    telemetry,
+    telemetry::{get_subscriber, init_subscriber},
 };
+use std::io::{sink, stdout};
 use std::net::TcpListener;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -34,8 +35,15 @@ async fn launch_http_server() -> ServerPostgres {
     let just_once_tracing_guard = LAUNCH_TRACING_LOCK.lock().unwrap();
     let mut tracing_initialization = unsafe { &mut MEMOIZED_TRACING_INITIALIZATION };
     if !tracing_initialization.is_initialized {
-        let subscriber = telemetry::get_subscriber("test".into(), "debug".into(), std::io::stdout);
-        telemetry::init_subscriber(subscriber).expect("Failed to initialized subscribed");
+        let filter_level = "debug".to_owned();
+        let subscriber_name = "test".to_owned();
+        if std::env::var("TEST_LOG").is_ok() {
+            let subscriber = get_subscriber(subscriber_name, filter_level, stdout);
+            init_subscriber(subscriber).expect("Failed to initializer subscriber to stdout");
+        } else {
+            let subscriber = get_subscriber(subscriber_name, filter_level, sink);
+            init_subscriber(subscriber).expect("Failed to initialize subscriber");
+        }
         tracing_initialization.is_initialized = true;
     }
     std::mem::drop(just_once_tracing_guard);
