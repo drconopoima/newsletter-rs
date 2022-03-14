@@ -34,7 +34,7 @@ async fn launch_http_server() -> ServerPostgres {
     let just_once_tracing_guard = LAUNCH_TRACING_LOCK.lock().unwrap();
     let mut tracing_initialization = unsafe { &mut MEMOIZED_TRACING_INITIALIZATION };
     if !tracing_initialization.is_initialized {
-        let subscriber = telemetry::get_subscriber("test".into(), "debug".into());
+        let subscriber = telemetry::get_subscriber("test".into(), "debug".into(), std::io::stdout);
         telemetry::init_subscriber(subscriber).expect("Failed to initialized subscribed");
         tracing_initialization.is_initialized = true;
     }

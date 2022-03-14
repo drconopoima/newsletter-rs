@@ -15,7 +15,11 @@ use std::time::Duration;
 async fn main() -> Result<()> {
     let subscriber_name = env!("CARGO_PKG_NAME");
     let env_filter = "info";
-    let subscriber = telemetry::get_subscriber(subscriber_name.to_owned(), env_filter.to_owned());
+    let subscriber = telemetry::get_subscriber(
+        subscriber_name.to_owned(),
+        env_filter.to_owned(),
+        std::io::stdout,
+    );
     telemetry::init_subscriber(subscriber).with_context(|| format!("{}::main: Failed to initialize tracing subscriber with name '{}' and filter level '{}'", env!("CARGO_PKG_NAME"), subscriber_name, env_filter))?;
     let config_file: &str = "configuration.yaml";
     let configuration: ApplicationSettings =
