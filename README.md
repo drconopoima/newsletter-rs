@@ -134,6 +134,18 @@ Using `cargo`:
 cargo test 
 ```
 
+Logging output from test logs is suppressed. Set environment variable `TEST_LOG` for output:
+
+```sh
+TEST_LOG=true cargo test
+```
+
+To beautify the tracing output, you can use a process substitution and a JSON processing library, like `jq`:
+
+```sh
+while read -r line; do echo "${line}" | jq -R 'fromjson? | .'; done< <(TEST_LOG=true cargo test)
+```
+
 ## How to loadtest
 
 Using K6
