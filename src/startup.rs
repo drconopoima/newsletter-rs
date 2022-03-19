@@ -1,4 +1,4 @@
-use crate::routes::healthcheck_structs::CachedHealthcheck;
+use crate::readiness::{probe_readiness, CachedHealthcheck};
 use crate::routes::{healthcheck, subscription};
 use actix_web::middleware::Logger;
 use actix_web::{dev::Server, web, App, HttpServer};
@@ -22,14 +22,24 @@ pub fn run(
         } else {
             Duration::from_millis(1000)
         };
-    let cached_healthcheck = CachedHealthcheck {
-        cache: None,
-        validity_period: healthcheck_validity_period,
-    };
+    let cached_healthcheck = CachedHealthcheck { cache: None };
     let arc_cached_healthcheck: Arc<RwLock<CachedHealthcheck>> =
         Arc::new(RwLock::from(cached_healthcheck));
     if admin_bind_address.is_none() {
         let server = HttpServer::new(move || {
+            let arc_cached_healcheck_readiness = arc_cached_healthcheck.clone();
+            let postgres_pool_readiness = postgres_pool.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut interval = tokio::time::interval(healthcheck_validity_period);
+                loop {
+                    futures::executor::block_on(interval.tick());
+                    if let Ok(mut cache) = arc_cached_healcheck_readiness.try_write() {
+                        cache.cache = Some(futures::executor::block_on(probe_readiness(
+                            postgres_pool_readiness.clone(),
+                        )));
+                    }
+                }
+            });
             App::new()
                 // Logging middleware
                 .wrap(Logger::default())
@@ -68,6 +78,19 @@ pub fn run(
     .listen(listener)?
     .run();
     let server2 = HttpServer::new(move || {
+        let arc_cached_healcheck_readiness = arc_cached_healthcheck.clone();
+        let postgres_pool_readiness = postgres_pool.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut interval = tokio::time::interval(healthcheck_validity_period);
+            loop {
+                futures::executor::block_on(interval.tick());
+                if let Ok(mut cache) = arc_cached_healcheck_readiness.try_write() {
+                    cache.cache = Some(futures::executor::block_on(probe_readiness(
+                        postgres_pool_readiness.clone(),
+                    )));
+                }
+            }
+        });
         App::new()
             // Logging middleware
             .wrap(Logger::default())
