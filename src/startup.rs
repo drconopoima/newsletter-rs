@@ -7,13 +7,14 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
+use anyhow::{Result,Context};
 
 pub fn run(
     listener: TcpListener,
     postgres_pool: Pool,
     admin_bind_address: Option<(String, u16)>,
     healthcheck_validity_period_ms: Option<Duration>,
-) -> Result<(Server, Option<Server>), std::io::Error> {
+) -> Result<(Server, Option<Server>)> {
     let postgres_pool = Arc::new(postgres_pool);
     let healthcheck_validity_period: Duration =
         if let Some(healthcheck_validity) = healthcheck_validity_period_ms {
@@ -46,7 +47,14 @@ pub fn run(
         return Ok((server, None));
     }
     let admin_bind_address = admin_bind_address.unwrap();
-    let admin_listener = TcpListener::bind(admin_bind_address)?;
+    let admin_listener = TcpListener::bind(&admin_bind_address).with_context(|| {
+        format!(
+            "{}::startup::run: Failed to open a TCP Listener on address '{}' and port '{}'.",
+            env!("CARGO_PKG_NAME"),
+            admin_bind_address.0,
+            admin_bind_address.1
+        )
+    })?;
     let postgres_pool1 = postgres_pool.clone();
     let server1 = HttpServer::new(move || {
         App::new()
