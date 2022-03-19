@@ -2,12 +2,12 @@ use crate::routes::healthcheck_structs::CachedHealthcheck;
 use crate::routes::{healthcheck, subscription};
 use actix_web::middleware::Logger;
 use actix_web::{dev::Server, web, App, HttpServer};
+use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
-use anyhow::{Result,Context};
 
 pub fn run(
     listener: TcpListener,
