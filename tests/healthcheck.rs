@@ -5,9 +5,12 @@ use newsletter_rs::{
     postgres::migrate_database,
     telemetry::{get_subscriber, init_subscriber},
 };
-use std::io::{sink, stdout};
 use std::net::TcpListener;
 use std::sync::Mutex;
+use std::{
+    io::{sink, stdout},
+    time::Duration,
+};
 use uuid::Uuid;
 #[macro_use(lazy_static)]
 extern crate lazy_static;
@@ -79,9 +82,13 @@ async fn launch_http_server() -> ServerPostgres {
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let (server, _): (Server, _) =
-        newsletter_rs::startup::run(listener, postgres_pool.clone(), None, None)
-            .expect("Failed to listen on address");
+    let (server, _): (Server, _) = newsletter_rs::startup::run(
+        listener,
+        postgres_pool.clone(),
+        None,
+        Some(Duration::from_millis(100000000)),
+    )
+    .expect("Failed to listen on address");
     let _ = tokio::spawn(server);
     ServerPostgres {
         address: format!("http://{}:{}", local_addr, port),
