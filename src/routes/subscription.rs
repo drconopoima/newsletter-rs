@@ -15,7 +15,6 @@ pub struct SubscriptionFormData {
     name = "Processing incoming subscription.",
     skip( form, request ),
     fields(
-        request_id = %Uuid::new_v4(),
         subscription_email = %form.email,
         subscription_name = %form.name
     )
