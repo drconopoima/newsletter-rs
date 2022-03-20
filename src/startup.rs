@@ -33,10 +33,11 @@ pub fn run(
                 let mut interval = tokio::time::interval(healthcheck_validity_period);
                 loop {
                     futures::executor::block_on(interval.tick());
+                    let healthresponse = futures::executor::block_on(probe_readiness(
+                        postgres_pool_readiness.clone(),
+                    ));
                     if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
-                        cache.cache = Some(futures::executor::block_on(probe_readiness(
-                            postgres_pool_readiness.clone(),
-                        )));
+                        cache.cache = Some(healthresponse);
                     }
                 }
             });
@@ -84,10 +85,11 @@ pub fn run(
             let mut interval = tokio::time::interval(healthcheck_validity_period);
             loop {
                 futures::executor::block_on(interval.tick());
+                let healthresponse = futures::executor::block_on(probe_readiness(
+                    postgres_pool_readiness.clone(),
+                ));
                 if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
-                    cache.cache = Some(futures::executor::block_on(probe_readiness(
-                        postgres_pool_readiness.clone(),
-                    )));
+                    cache.cache = Some(healthresponse);
                 }
             }
         });
