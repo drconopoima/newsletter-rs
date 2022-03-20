@@ -1,6 +1,5 @@
 use crate::readiness::{probe_readiness, CachedHealth};
 use crate::routes::{healthcheck, subscription};
-use actix_web::middleware::Logger;
 use actix_web::{dev::Server, web, App, HttpServer};
 use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
@@ -8,6 +7,7 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
+use tracing_actix_web::TracingLogger;
 
 pub fn run(
     listener: TcpListener,
@@ -43,7 +43,7 @@ pub fn run(
             });
             App::new()
                 // Logging middleware
-                .wrap(Logger::default())
+                .wrap(TracingLogger::default())
                 // Ensure App to be running correctly
                 .route("/healthcheck", web::get().to(healthcheck))
                 // Handle newsletter subscription requests
@@ -70,7 +70,7 @@ pub fn run(
     let server1 = HttpServer::new(move || {
         App::new()
             // Logging middleware
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
             // Handle newsletter subscription requests
             .route("/subscription", web::post().to(subscription))
             // Register the Postgres connection as part of application state
@@ -94,7 +94,7 @@ pub fn run(
         });
         App::new()
             // Logging middleware
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
             // Ensure App to be running correctly
             .route("/healthcheck", web::get().to(healthcheck))
             // Register the Postgres connection as part of application state
