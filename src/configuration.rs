@@ -1,4 +1,5 @@
 use config::{Config, File, FileFormat};
+use std::fmt;
 
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
@@ -61,4 +62,15 @@ pub fn get_configuration(filename: &str) -> Result<ApplicationSettings, config::
         .unwrap();
     // Convert into Result<Settings, ConfigError>
     builder.try_deserialize::<ApplicationSettings>()
+}
+
+impl fmt::Debug for DatabaseSettings {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DatabaseSettings")
+            .field("port", &self.port)
+            .field("host", &self.host)
+            .field("username", &self.username)
+            .field("database", &self.database)
+            .finish()
+    }
 }

@@ -7,6 +7,10 @@ use std::str::FromStr;
 use tokio_postgres::{Error, NoTls, SimpleQueryMessage};
 use uuid::Uuid;
 
+#[tracing::instrument(
+    name = "Generating database connection pool.",
+    skip(postgres_connection_string)
+)]
 pub fn generate_connection_pool(postgres_connection_string: String) -> Pool {
     let postgres_configuration =
         tokio_postgres::Config::from_str(&postgres_connection_string).unwrap();
@@ -21,10 +25,12 @@ pub fn generate_connection_pool(postgres_connection_string: String) -> Pool {
         .unwrap()
 }
 
+#[tracing::instrument(name = "Getting postgres client from pool.", skip(pool))]
 pub async fn get_client(pool: Pool) -> Object {
     pool.get().await.unwrap()
 }
 
+#[tracing::instrument(name = "Checking if database exists.")]
 pub async fn check_database_exists(
     database_name: &str,
     database_settings: &DatabaseSettings,
@@ -61,6 +67,7 @@ pub async fn check_database_exists(
     (true, postgres_client)
 }
 
+#[tracing::instrument(name = "Creating database.")]
 pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
     let database_name: &str = database_settings.database.as_ref().unwrap().as_str();
     let (exists, postgres_client) = check_database_exists(database_name, database_settings).await;
@@ -76,6 +83,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
     generate_connection_pool(connection_string)
 }
 
+#[tracing::instrument(name = "Migrating Database.")]
 pub async fn migrate_database(
     mut database_settings: DatabaseSettings,
     migration_folder: String,
@@ -170,6 +178,7 @@ pub async fn migrate_database(
     postgres_pool
 }
 
+#[tracing::instrument(name = "Creating migrations table.", skip(postgres_client))]
 pub async fn create_migrations_table(postgres_client: &Object) {
     let migration_table_name = "_initialization_migrations";
     let create_table_statement = format!(
@@ -191,6 +200,7 @@ pub async fn create_migrations_table(postgres_client: &Object) {
         })[0];
 }
 
+#[tracing::instrument(name = "Running simple query.", skip(postgres_client))]
 pub async fn run_simple_query(
     postgres_client: &Object,
     query_statement: &str,
