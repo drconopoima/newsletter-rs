@@ -1,4 +1,4 @@
-use crate::readiness::{probe_readiness, CachedHealthcheck};
+use crate::readiness::{probe_readiness, CachedHealth};
 use crate::routes::{healthcheck, subscription};
 use actix_web::middleware::Logger;
 use actix_web::{dev::Server, web, App, HttpServer};
@@ -22,8 +22,8 @@ pub fn run(
         } else {
             Duration::from_millis(1000)
         };
-    let cached_healthcheck = CachedHealthcheck { cache: None };
-    let arc_cached_healthcheck: Arc<RwLock<CachedHealthcheck>> =
+    let cached_healthcheck = CachedHealth { cache: None };
+    let arc_cached_healthcheck: Arc<RwLock<CachedHealth>> =
         Arc::new(RwLock::from(cached_healthcheck));
     if admin_bind_address.is_none() {
         let server = HttpServer::new(move || {
@@ -32,12 +32,12 @@ pub fn run(
             tokio::task::spawn_blocking(move || {
                 let mut interval = tokio::time::interval(healthcheck_validity_period);
                 loop {
-                    if let Ok(mut cache) = arc_cached_healthcheck_readiness.try_write() {
+                    futures::executor::block_on(interval.tick());
+                    if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
                         cache.cache = Some(futures::executor::block_on(probe_readiness(
                             postgres_pool_readiness.clone(),
                         )));
                     }
-                    futures::executor::block_on(interval.tick());
                 }
             });
             App::new()
@@ -83,12 +83,12 @@ pub fn run(
         tokio::task::spawn_blocking(move || {
             let mut interval = tokio::time::interval(healthcheck_validity_period);
             loop {
-                if let Ok(mut cache) = arc_cached_healthcheck_readiness.try_write() {
+                futures::executor::block_on(interval.tick());
+                if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
                     cache.cache = Some(futures::executor::block_on(probe_readiness(
                         postgres_pool_readiness.clone(),
                     )));
                 }
-                futures::executor::block_on(interval.tick());
             }
         });
         App::new()

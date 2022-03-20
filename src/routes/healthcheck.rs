@@ -1,10 +1,13 @@
-use crate::readiness::CachedHealthcheck;
+use crate::readiness::{
+    build_postgres_readwrite_response, to_rfc3339, CachedHealth, STATUS_FAIL, STATUS_WARN,
+};
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use std::sync::{Arc, RwLock};
+use std::time::SystemTime;
 
 pub async fn healthcheck(request: HttpRequest) -> impl Responder {
-    let optional_cache_rwlock: Option<&Arc<RwLock<CachedHealthcheck>>> =
-        match request.app_data::<Arc<RwLock<CachedHealthcheck>>>() {
+    let optional_cache_rwlock: Option<&Arc<RwLock<CachedHealth>>> =
+        match request.app_data::<Arc<RwLock<CachedHealth>>>() {
             Some(cache_rwlock) => Some(cache_rwlock),
             None => {
                 tracing::error!("Could not retrieve cached healthcheck from app_data.");
@@ -19,5 +22,13 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
             }
         }
     };
-    HttpResponse::InternalServerError().finish()
+    let now_systemtime = SystemTime::now();
+    let now_string = to_rfc3339(now_systemtime).unwrap();
+    HttpResponse::Ok().json(build_postgres_readwrite_response(
+        STATUS_FAIL,
+        STATUS_FAIL,
+        STATUS_WARN,
+        &now_string,
+        "Could not read state.",
+    ))
 }

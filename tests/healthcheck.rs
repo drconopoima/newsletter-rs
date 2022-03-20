@@ -110,8 +110,6 @@ async fn healthcheck_endpoint() {
     // Act
     // Client library makes HTTP requests against server
     let healthcheck_route = &format!("{}/healthcheck", server_postgres.address);
-    let mut interval = tokio::time::interval(Duration::from_millis(1000));
-    interval.tick().await;
     let response = client
         .get(healthcheck_route)
         .send()

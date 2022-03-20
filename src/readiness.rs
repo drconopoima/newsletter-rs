@@ -3,38 +3,42 @@ use deadpool_postgres::Pool;
 use std::sync::Arc;
 use std::time::SystemTime;
 use time::{error, format_description::well_known::Rfc3339, OffsetDateTime};
-pub struct CachedHealthcheck {
-    pub cache: Option<HealthcheckObject>,
+pub struct CachedHealth {
+    pub cache: Option<HealthResponse>,
 }
 
 // Healthcheck response format for HTTP APIs https://inadarei.github.io/rfc-healthcheck/
 #[derive(serde::Serialize)]
-pub struct HealthcheckObject {
+pub struct HealthResponse {
     pub status: String,
-    pub checks: ChecksObject,
+    pub checks: ChecksResponse,
     pub output: String,
     pub time: String,
     pub version: String,
 }
 
 #[derive(serde::Serialize)]
-pub struct ChecksObject {
-    pub postgres_read: PostgresReadChecks,
-    pub postgres_write: PostgresWriteChecks,
+pub struct ChecksResponse {
+    pub postgres_read: PostgresReadCheck,
+    pub postgres_write: PostgresWriteCheck,
 }
 
 #[derive(serde::Serialize)]
 
-pub struct PostgresReadChecks {
+pub struct PostgresReadCheck {
     pub status: String,
     pub time: Option<String>,
     pub output: String,
     pub version: Option<String>,
 }
 
+pub static STATUS_PASS: &str = "pass";
+pub static STATUS_FAIL: &str = "fail";
+pub static STATUS_WARN: &str = "warn";
+
 #[derive(serde::Serialize)]
 
-pub struct PostgresWriteChecks {
+pub struct PostgresWriteCheck {
     pub status: String,
     pub time: Option<String>,
     pub pg_is_in_recovery: Option<bool>,
@@ -42,10 +46,7 @@ pub struct PostgresWriteChecks {
     pub version: Option<String>,
 }
 
-pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
-    let status_pass = "pass";
-    let status_fail = "fail";
-    let status_warn = "warn";
+pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
     let now_systemtime = SystemTime::now();
     let now_string = to_rfc3339(now_systemtime).unwrap();
     let postgres_client_error = "DB client error";
@@ -57,9 +58,10 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
         }
     };
     if optional_postgres_client.is_none() {
-        return postgres_read_write_fail_healthcheck(
-            status_fail,
-            status_warn,
+        return build_postgres_readwrite_response(
+            STATUS_FAIL,
+            STATUS_FAIL,
+            STATUS_WARN,
             &now_string,
             postgres_client_error,
         );
@@ -81,9 +83,10 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
         }
     };
     if statement_read.is_none() {
-        return postgres_read_write_fail_healthcheck(
-            status_fail,
-            status_warn,
+        return build_postgres_readwrite_response(
+            STATUS_FAIL,
+            STATUS_FAIL,
+            STATUS_WARN,
             &now_string,
             statement_read_error,
         );
@@ -97,9 +100,10 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
         }
     };
     if optional_row.is_none() {
-        return postgres_read_write_fail_healthcheck(
-            status_fail,
-            status_warn,
+        return build_postgres_readwrite_response(
+            STATUS_FAIL,
+            STATUS_FAIL,
+            STATUS_WARN,
             &now_string,
             read_error,
         );
@@ -110,8 +114,8 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
     let postgres_recovery: bool = row_results[0].get(&"recovery");
     let postgres_version: &str = row_results[0].get(&"pg_version");
     let output_pass = "";
-    let postgres_read = postgres_read_checks(
-        status_pass,
+    let postgres_read = build_postgres_read_response(
+        STATUS_PASS,
         Some(postgres_read_timestamp_string.to_owned()),
         Some(postgres_version.to_owned()),
         output_pass,
@@ -135,10 +139,10 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
             None
         }
     };
-    let postgres_write: PostgresWriteChecks;
+    let postgres_write: PostgresWriteCheck;
     if statement_write.is_none() {
-        postgres_write = postgres_write_checks(
-            status_fail,
+        postgres_write = build_postgres_write_response(
+            STATUS_FAIL,
             None,
             Some(postgres_recovery),
             Some(postgres_version.to_owned()),
@@ -146,7 +150,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
         );
 
         return get_healthcheck_object(
-            status_warn,
+            STATUS_WARN,
             &now_string,
             output_pass,
             postgres_read,
@@ -166,8 +170,8 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
         }
     };
     if optional_row.is_none() {
-        postgres_write = postgres_write_checks(
-            status_fail,
+        postgres_write = build_postgres_write_response(
+            STATUS_FAIL,
             None,
             Some(postgres_recovery),
             Some(postgres_version.to_owned()),
@@ -175,7 +179,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
         );
 
         return get_healthcheck_object(
-            status_warn,
+            STATUS_WARN,
             &now_string,
             output_pass,
             postgres_read,
@@ -185,8 +189,8 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
     let row_results = optional_row.unwrap();
     let postgres_write_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
     let postgres_write_timestamp_string = to_rfc3339(postgres_write_timestamp).unwrap();
-    postgres_write = postgres_write_checks(
-        status_pass,
+    postgres_write = build_postgres_write_response(
+        STATUS_PASS,
         Some(postgres_write_timestamp_string),
         Some(postgres_recovery),
         Some(postgres_version.to_owned()),
@@ -194,7 +198,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
     );
 
     get_healthcheck_object(
-        status_pass,
+        STATUS_PASS,
         &now_string,
         output_pass,
         postgres_read,
@@ -202,20 +206,20 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthcheckObject {
     )
 }
 
-fn to_rfc3339<T>(datetime: T) -> Result<String, error::Format>
+pub fn to_rfc3339<T>(datetime: T) -> Result<String, error::Format>
 where
     T: Into<OffsetDateTime>,
 {
     datetime.into().format(&Rfc3339)
 }
 
-fn postgres_read_checks(
+pub fn build_postgres_read_response(
     status: &str,
     time: Option<String>,
     pg_version: Option<String>,
     output: &str,
-) -> PostgresReadChecks {
-    PostgresReadChecks {
+) -> PostgresReadCheck {
+    PostgresReadCheck {
         status: status.to_owned(),
         time,
         version: pg_version,
@@ -223,14 +227,14 @@ fn postgres_read_checks(
     }
 }
 
-fn postgres_write_checks(
+pub fn build_postgres_write_response(
     status: &str,
     time: Option<String>,
     pg_is_in_recovery: Option<bool>,
     pg_version: Option<String>,
     output: &str,
-) -> PostgresWriteChecks {
-    PostgresWriteChecks {
+) -> PostgresWriteCheck {
+    PostgresWriteCheck {
         status: status.to_owned(),
         time,
         pg_is_in_recovery,
@@ -239,19 +243,19 @@ fn postgres_write_checks(
     }
 }
 
-fn get_healthcheck_object(
+pub fn get_healthcheck_object(
     status: &str,
     time: &str,
     output: &str,
-    postgres_read: PostgresReadChecks,
-    postgres_write: PostgresWriteChecks,
-) -> HealthcheckObject {
-    let checks = ChecksObject {
+    postgres_read: PostgresReadCheck,
+    postgres_write: PostgresWriteCheck,
+) -> HealthResponse {
+    let checks = ChecksResponse {
         postgres_read,
         postgres_write,
     };
 
-    HealthcheckObject {
+    HealthResponse {
         status: status.to_owned(),
         checks,
         time: time.to_owned(),
@@ -260,16 +264,15 @@ fn get_healthcheck_object(
     }
 }
 
-fn postgres_read_write_fail_healthcheck(
-    status_fail: &str,
-    status_warn: &str,
+pub fn build_postgres_readwrite_response(
+    postgres_read_status: &str,
+    postgres_write_status: &str,
+    global_status: &str,
     now_string: &str,
     output: &str,
-) -> HealthcheckObject {
-    let postgres_read_status = status_fail;
-    let postgres_write_status = status_fail;
-    let global_status = status_warn;
-    let postgres_read = postgres_read_checks(postgres_read_status, None, None, output);
-    let postgres_write = postgres_write_checks(postgres_write_status, None, None, None, output);
+) -> HealthResponse {
+    let postgres_read = build_postgres_read_response(postgres_read_status, None, None, output);
+    let postgres_write =
+        build_postgres_write_response(postgres_write_status, None, None, None, output);
     get_healthcheck_object(global_status, now_string, "", postgres_read, postgres_write)
 }

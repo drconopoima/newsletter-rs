@@ -94,10 +94,10 @@ async fn main() -> Result<()> {
             ));
         }
     }
-    let healthcheck_cache_validity_ms: Option<Duration> =
-        if configuration.healthcheck_cache_validity_ms.is_some() {
+    let health_cache_validity_ms: Option<Duration> =
+        if configuration.health_cache_validity_ms.is_some() {
             Some(Duration::from_millis(
-                configuration.healthcheck_cache_validity_ms.unwrap().into(),
+                configuration.health_cache_validity_ms.unwrap().into(),
             ))
         } else {
             None
@@ -107,7 +107,7 @@ async fn main() -> Result<()> {
         listener,
         postgres_connection,
         admin_bind_address,
-        healthcheck_cache_validity_ms,
+        health_cache_validity_ms,
     )
     .unwrap();
     if server2.is_some() {
