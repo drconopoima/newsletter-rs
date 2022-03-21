@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
 use newsletter_rs::{
-    configuration::{get_configuration, ApplicationSettings, DatabaseSettings},
+    configuration::{get_configuration, ApplicationSettings, CensoredString, DatabaseSettings},
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
     startup::run,
     telemetry,
@@ -29,7 +29,10 @@ async fn main() -> Result<()> {
                 config_file, error
             )
         });
-    let connection_string = &configuration.database.connection_string().to_owned();
+    let connection_string = CensoredString {
+        data: configuration.database.connection_string(),
+        representation: configuration.database.connection_string_censored(),
+    };
     let database_name = match configuration.database.database.as_ref() {
         Some(database_name) => database_name.to_owned(),
         _ => {
@@ -57,10 +60,10 @@ async fn main() -> Result<()> {
                 }
                 migrate_database(database_settings, folder).await
             } else {
-                generate_connection_pool(connection_string.to_owned())
+                generate_connection_pool(connection_string)
             }
         }
-        _ => generate_connection_pool(connection_string.to_owned()),
+        _ => generate_connection_pool(connection_string),
     };
     let (database_exists, _) =
         check_database_exists(database_name.as_str(), &configuration.database).await;

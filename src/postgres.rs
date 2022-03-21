@@ -1,4 +1,4 @@
-use crate::configuration::DatabaseSettings;
+use crate::configuration::{CensoredString, DatabaseSettings};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
 use md5;
 use std::fs::{read_dir, File};
@@ -7,11 +7,8 @@ use std::str::FromStr;
 use tokio_postgres::{Error, NoTls, SimpleQueryMessage};
 use uuid::Uuid;
 
-#[tracing::instrument(
-    name = "Generating database connection pool.",
-    skip(postgres_connection_string)
-)]
-pub fn generate_connection_pool(postgres_connection_string: String) -> Pool {
+#[tracing::instrument(name = "Generating database connection pool.")]
+pub fn generate_connection_pool(postgres_connection_string: CensoredString) -> Pool {
     let postgres_configuration =
         tokio_postgres::Config::from_str(&postgres_connection_string).unwrap();
     let deadpool_manager_config = ManagerConfig {
@@ -35,7 +32,10 @@ pub async fn check_database_exists(
     database_name: &str,
     database_settings: &DatabaseSettings,
 ) -> (bool, Object) {
-    let connection_string_without_database = database_settings.connection_string_without_database();
+    let connection_string_without_database = CensoredString {
+        data: database_settings.connection_string_without_database(),
+        representation: database_settings.connection_string_without_database_censored(),
+    };
     let postgres_pool_without_database: Pool =
         generate_connection_pool(connection_string_without_database);
     let postgres_client = postgres_pool_without_database
@@ -79,7 +79,10 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
             .await
             .expect("Failed to create database");
     }
-    let connection_string = database_settings.connection_string();
+    let connection_string = CensoredString {
+        data: database_settings.connection_string(),
+        representation: database_settings.connection_string_censored(),
+    };
     generate_connection_pool(connection_string)
 }
 
