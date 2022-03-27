@@ -156,6 +156,34 @@ k6 run --vus 200 ./testdata/k6_get_healthcheck.js --duration 60s
 k6 run --vus 200 ./testdata/k6_post_subscription.js --duration 60s
 ```
 
+## Configuration
+
+Each configuration parameter is obtained from files within relative directory 'configuration'. The base configuration file is main.yaml
+
+You can generate custom override configuration files, and launch by using variable 'APP__ENVIRONMENT'
+
+E.g. to launch with example production settings, you would use:
+
+```sh
+APP__ENVIRONMENT=production cargo run --release
+```
+
+You can override any parameter with environment variables, by using the prefix "APP__" and field separator "_":
+
+```sh
+  export APP__DATABASE_PASSWORD='Some$ecretPassword'
+  APP__APPLICATION_PORT=8080 cargo run --release
+```
+
+Would be equivalent as fabricating a custom override configuration file:
+
+```yaml
+application:
+  port: 8080
+database:
+  password: 'Some$ecretPassword'
+```
+
 ## Database details
 
 Check the [database diagram](database_diagram.md) section.

@@ -87,17 +87,14 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
 }
 
 #[tracing::instrument(name = "Migrating Database.")]
-pub async fn migrate_database(
-    mut database_settings: DatabaseSettings,
-    migration_folder: String,
-) -> Pool {
+pub async fn migrate_database(mut database_settings: DatabaseSettings) -> Pool {
     // Ensure database creation
     let postgres_pool = create_database(&mut database_settings).await;
     let postgres_client = postgres_pool
         .get()
         .await
         .expect("Failed to generate client connection to postgres from pool");
-    let mut path_entries: Vec<_> = read_dir(migration_folder)
+    let mut path_entries: Vec<_> = read_dir(database_settings.migration.unwrap().folder)
         .expect("Failed to read database migrations directory")
         .map(|r| r.unwrap())
         .collect();

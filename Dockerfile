@@ -24,7 +24,8 @@ FROM docker.io/debian:buster-slim
 # Copy build artifact
 COPY --from=build /newsletter-rs/target/release/newsletter-rs .
 
-COPY ./configuration.yaml ./
+COPY ./configuration ./configuration
 
+ENV APP__ENVIRONMENT production
 # Startup command
 CMD ["./newsletter-rs"]

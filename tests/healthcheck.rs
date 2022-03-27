@@ -50,7 +50,7 @@ async fn launch_http_server() -> ServerPostgres {
         tracing_initialization.is_initialized = true;
     }
     std::mem::drop(just_once_tracing_guard);
-    let config_file: &str = "configuration.yaml";
+    let config_file: &str = "main.yaml";
     let mut configuration = get_configuration(config_file).unwrap_or_else(|error| {
         panic!(
             "ERROR: Failed to read configuration file '{}': {}",
@@ -59,25 +59,14 @@ async fn launch_http_server() -> ServerPostgres {
     });
     let migration_settings = MigrationSettings {
         migrate: true,
-        folder: Some("./migrations".to_owned()),
+        folder: "./migrations".to_owned(),
     };
-    configuration.database_migration = Some(migration_settings);
+    configuration.database.migration = Some(migration_settings);
     let isolated_database_name = Uuid::new_v4().to_string();
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
     configuration.database.database = Some(uuid_without_hyphens.to_owned());
     configuration.database.username = "postgres".to_owned();
-    let postgres_pool: Pool = migrate_database(
-        configuration.database,
-        configuration
-            .database_migration
-            .as_ref()
-            .unwrap()
-            .folder
-            .as_ref()
-            .unwrap()
-            .to_owned(),
-    )
-    .await;
+    let postgres_pool: Pool = migrate_database(configuration.database).await;
     let local_addr = "127.0.0.1";
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");

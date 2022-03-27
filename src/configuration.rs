@@ -1,8 +1,11 @@
-use config::{Config, File, FileFormat};
+use anyhow::{Context, Error, Result};
+use config::{Config, Environment, File, FileFormat};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
+use tracing::info;
 
 pub static CENSOR_STRING: &str = "***REMOVED***";
+pub static CONFIGURATION_SUBDIRECTORY: &str = "configuration";
 
 #[derive(serde::Deserialize)]
 pub struct CensoredString {
@@ -35,20 +38,29 @@ impl fmt::Display for CensoredString {
 }
 
 #[derive(serde::Deserialize)]
-pub struct ApplicationSettings {
+pub struct Settings {
     pub database: DatabaseSettings,
-    pub application_address: String,
-    pub application_port: u16,
-    pub health_cache_validity_ms: Option<u32>,
-    pub admin_address: Option<String>,
-    pub admin_port: Option<u16>,
-    pub database_migration: Option<MigrationSettings>,
+    pub application: ApplicationSettings,
+    pub admin: Option<AdminSettings>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ApplicationSettings {
+    pub address: String,
+    pub port: u16,
+    pub healthcachevalidityms: Option<u32>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct AdminSettings {
+    pub address: String,
+    pub port: u16,
 }
 
 #[derive(serde::Deserialize)]
 pub struct MigrationSettings {
     pub migrate: bool,
-    pub folder: Option<String>,
+    pub folder: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -58,6 +70,7 @@ pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
     pub database: Option<String>,
+    pub migration: Option<MigrationSettings>,
 }
 impl fmt::Debug for DatabaseSettings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -120,12 +133,31 @@ impl DatabaseSettings {
 }
 
 // Read top-level configuration file with extension YAML...
-pub fn get_configuration(filename: &str) -> Result<ApplicationSettings, config::ConfigError> {
+pub fn get_configuration(filename: &str) -> Result<Settings, Error> {
+    let environment = std::env::var("APP__ENVIRONMENT").unwrap_or_else(|_| "local".to_owned());
     // Initialize configuration reader
+    let default_configuration_file = &*format!("{}/{}", CONFIGURATION_SUBDIRECTORY, filename);
+    let environment_configuration_file =
+        &*format!("{}/{}", CONFIGURATION_SUBDIRECTORY, environment);
     let builder = Config::builder()
-        .add_source(File::new(filename, FileFormat::Yaml))
+        .add_source(File::new(default_configuration_file, FileFormat::Yaml))
+        .add_source(File::new(environment_configuration_file,FileFormat::Yaml))
+        .add_source(Environment::with_prefix("APP_").try_parsing(true).separator("_"))
         .build()
-        .unwrap();
+        .with_context(|| {
+            format!(
+                "{}::configuration::get_configuration: Failed to build configuration from sources: '{}' and '{}'",
+                env!("CARGO_PKG_NAME"),
+                default_configuration_file,
+                environment_configuration_file
+            )
+        })?;
+    info!("Successfully built configuration: '{:?}'", builder);
     // Convert into Result<Settings, ConfigError>
-    builder.try_deserialize::<ApplicationSettings>()
+    builder.try_deserialize::<Settings>().with_context(|| {
+        format!(
+            "{}::configuration::get_configuration: Failed to deserialize configuration",
+            env!("CARGO_PKG_NAME")
+        )
+    })
 }

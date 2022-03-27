@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
 use newsletter_rs::{
-    configuration::{get_configuration, ApplicationSettings, CensoredString, DatabaseSettings},
+    configuration::{get_configuration, CensoredString, DatabaseSettings, Settings},
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
     startup::run,
     telemetry,
@@ -21,14 +21,13 @@ async fn main() -> Result<()> {
         std::io::stdout,
     );
     telemetry::init_subscriber(subscriber).with_context(|| format!("{}::main: Failed to initialize tracing subscriber with name '{}' and filter level '{}'", env!("CARGO_PKG_NAME"), subscriber_name, env_filter))?;
-    let config_file: &str = "configuration.yaml";
-    let configuration: ApplicationSettings =
-        get_configuration(config_file).unwrap_or_else(|error| {
-            panic!(
-                "ERROR: Failed to read configuration file \"{}\", {}.",
-                config_file, error
-            )
-        });
+    let config_file: &str = "main.yaml";
+    let mut configuration: Settings = get_configuration(config_file).unwrap_or_else(|error| {
+        panic!(
+            "ERROR: Failed to read configuration file \"{}\", {}.",
+            config_file, error
+        )
+    });
     let connection_string = CensoredString {
         data: configuration.database.connection_string(),
         representation: configuration.database.connection_string_censored(),
@@ -50,15 +49,12 @@ async fn main() -> Result<()> {
         username: configuration.database.username.to_owned(),
         password: configuration.database.password.to_owned(),
         database: Some(database_name.to_owned()),
+        migration: configuration.database.migration.take(),
     };
-    let postgres_connection: Pool = match configuration.database_migration {
-        Some(ref migration_settings) => {
-            if migration_settings.migrate {
-                let mut folder = "./migrations".to_owned();
-                if let Some(ref migration_folder) = migration_settings.folder {
-                    folder = migration_folder.to_owned();
-                }
-                migrate_database(database_settings, folder).await
+    let postgres_connection: Pool = match configuration.database.migration {
+        Some(ref migration) => {
+            if migration.migrate {
+                migrate_database(database_settings).await
             } else {
                 generate_connection_pool(connection_string)
             }
@@ -72,35 +68,29 @@ async fn main() -> Result<()> {
     }
     // Raises if failed to bind address
     let bind_address = (
-        configuration.application_address.to_owned(),
-        configuration.application_port,
+        configuration.application.address.to_owned(),
+        configuration.application.port,
     );
     let listener = TcpListener::bind(bind_address).with_context(|| {
         format!(
             "{}::main: Failed to open a TCP Listener on address '{}' and port '{}'.",
             env!("CARGO_PKG_NAME"),
-            configuration.application_address.to_owned(),
-            configuration.application_port
+            configuration.application.address.to_owned(),
+            configuration.application.port
         )
     })?;
     let mut admin_bind_address = None;
-    if configuration.admin_port.is_some() {
-        if configuration.admin_address.is_some() {
-            admin_bind_address = Some((
-                configuration.admin_address.unwrap(),
-                configuration.admin_port.unwrap(),
-            ));
-        } else {
-            admin_bind_address = Some((
-                configuration.application_address.to_owned(),
-                configuration.admin_port.unwrap(),
-            ));
-        }
+    if let Some(ref admin) = configuration.admin {
+        admin_bind_address = Some((admin.address.to_owned(), admin.port));
     }
     let health_cache_validity_ms: Option<Duration> =
-        if configuration.health_cache_validity_ms.is_some() {
+        if configuration.application.healthcachevalidityms.is_some() {
             Some(Duration::from_millis(
-                configuration.health_cache_validity_ms.unwrap().into(),
+                configuration
+                    .application
+                    .healthcachevalidityms
+                    .unwrap()
+                    .into(),
             ))
         } else {
             None
