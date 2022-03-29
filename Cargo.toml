@@ -34,8 +34,8 @@ tracing-log = "^0.1"
 anyhow = "^1"
 tracing-actix-web = { version = "^0.5" }
 serde-aux = "^3"
-postgres-native-tls = { "version" = "^0.5" }
-native-tls = { "version" = "^0.2" }
+postgres-openssl = { "version" = "^0.5" }
+openssl = { "version" = "^0.10" }
 
 [dev-dependencies]
 reqwest = { version = "^0.11", features = ["json"] }

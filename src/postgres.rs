@@ -2,9 +2,8 @@ use crate::configuration::{CensoredString, DatabaseSettings};
 use anyhow::{Context, Error, Result};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, RecyclingMethod};
 use md5;
-use native_tls::{Certificate, TlsConnector};
-use postgres_native_tls::MakeTlsConnector;
-use std::fs;
+use openssl::ssl::{SslConnector, SslMethod};
+use postgres_openssl::MakeTlsConnector;
 use std::fs::{read_dir, File};
 use std::io::{BufReader, Read};
 use std::str::FromStr;
@@ -28,12 +27,9 @@ pub fn generate_connection_pool(
         } else {
             "/etc/ssl/certs/ca-certificates.crt".to_owned()
         };
-        let certificate_bytes = fs::read(&cafile).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to read bytes from source file '{}'", env!("CARGO_PKG_NAME"), &cafile)})?;
-        let certificate = Certificate::from_pem(&certificate_bytes).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from contents read out of file '{}'", env!("CARGO_PKG_NAME"), &cafile)})?;
-        let connector = TlsConnector::builder()
-            .add_root_certificate(certificate)
-            .build()?;
-        let connector = MakeTlsConnector::new(connector);
+        let mut builder = SslConnector::builder(SslMethod::tls())?;
+        builder.set_ca_file(&cafile)?;
+        let connector = MakeTlsConnector::new(builder.build());
         let deadpool_manager =
             Manager::from_config(postgres_configuration, connector, deadpool_manager_config);
         Ok(Pool::builder(deadpool_manager)
