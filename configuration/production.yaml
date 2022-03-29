@@ -3,7 +3,7 @@ application:
 database:
   ssl:
     tls: true
-    cacertificates: "/etc/ssl/certs/ca-certificates.crt"
+    cacertificates: "chain.crt"
   migration:
     migrate: true
     folder: "./migrations"

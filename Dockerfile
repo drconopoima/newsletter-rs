@@ -30,5 +30,7 @@ ENV APP__ENVIRONMENT production
 
 COPY ./migrations ./migrations
 
+COPY ./chain.crt ./chain.crt
+
 # Startup command
 CMD ["./newsletter-rs"]
