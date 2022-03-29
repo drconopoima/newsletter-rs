@@ -1,10 +1,10 @@
 use crate::configuration::{CensoredString, DatabaseSettings};
+use actix_web::body::MessageBody;
 use anyhow::{Context, Error, Result};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, RecyclingMethod};
 use md5;
 use native_tls::{Certificate, TlsConnector};
 use postgres_native_tls::MakeTlsConnector;
-use std::fs;
 use std::fs::{read_dir, File};
 use std::io::{BufReader, Read};
 use std::str::FromStr;
@@ -23,13 +23,7 @@ pub fn generate_connection_pool(
         recycling_method: RecyclingMethod::Verified,
     };
     if tls {
-        let cafile: String = if let Some(ca_file) = cacertificates {
-            ca_file
-        } else {
-            "/etc/ssl/certs/ca-certificates.crt".to_owned()
-        };
-        let certificate_bytes = fs::read(&cafile).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to read bytes from source file '{}'", env!("CARGO_PKG_NAME"), &cafile)})?;
-        let certificate = Certificate::from_pem(&certificate_bytes).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from contents read out of file '{}'", env!("CARGO_PKG_NAME"), &cafile)})?;
+        let certificate = Certificate::from_pem(&cacertificates.unwrap().try_into_bytes().unwrap()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from database.ssl.cacertificates variable", env!("CARGO_PKG_NAME"))})?;
         let connector = TlsConnector::builder()
             .add_root_certificate(certificate)
             .build()?;

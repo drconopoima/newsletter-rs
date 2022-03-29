@@ -3,7 +3,10 @@ application:
 database:
   ssl:
     tls: true
-    cacertificates: "chain.crt"
-  migration:
-    migrate: false
-    folder: "./migrations"
+    cacertificates: |
+      -----BEGIN CERTIFICATE-----
+      M***EXAMPLE***
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----
+      M***EXAMPLE***
+      -----END CERTIFICATE-----

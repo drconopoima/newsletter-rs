@@ -1,5 +1,3 @@
-application:
-  address: "127.0.0.1"
 admin:
   port: 65080
   address: "127.0.0.1"

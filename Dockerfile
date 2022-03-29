@@ -37,7 +37,5 @@ RUN  apt-get update -y \
 
 COPY ./migrations ./migrations
 
-COPY ./chain.crt ./chain.crt
-
 # Startup command
 CMD ["./newsletter-rs"]
