@@ -187,3 +187,7 @@ database:
 ## Database details
 
 Check the [database diagram](database_diagram.md) section.
+
+## Database migration scripts notes
+
+The default migration scripts included in `./migrations` require at least Postgres 14 to work. You can replace scripts if need compatibility. Error in older versions 'syntax error at or near "TRIGGER"'.

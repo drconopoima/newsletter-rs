@@ -5,5 +5,5 @@ database:
     tls: true
     cacertificates: "chain.crt"
   migration:
-    migrate: true
+    migrate: false
     folder: "./migrations"
