@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
 use newsletter_rs::{
-    configuration::{get_configuration, CensoredString, DatabaseSettings, Settings},
+    configuration::{get_configuration, CensoredString, DatabaseSettings, Settings, SslSettings},
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
     startup::run,
     telemetry,
@@ -50,16 +50,28 @@ async fn main() -> Result<()> {
         password: configuration.database.password.to_owned(),
         database: Some(database_name.to_owned()),
         migration: configuration.database.migration.take(),
+        ssl: SslSettings {
+            tls: configuration.database.ssl.tls,
+            cacertificates: configuration.database.ssl.cacertificates.to_owned(),
+        },
     };
     let postgres_connection: Pool = match configuration.database.migration {
         Some(ref migration) => {
             if migration.migrate {
                 migrate_database(database_settings).await
             } else {
-                generate_connection_pool(connection_string)
+                generate_connection_pool(
+                    connection_string,
+                    database_settings.ssl.tls,
+                    database_settings.ssl.cacertificates.to_owned(),
+                )?
             }
         }
-        _ => generate_connection_pool(connection_string),
+        _ => generate_connection_pool(
+            connection_string,
+            database_settings.ssl.tls,
+            database_settings.ssl.cacertificates.to_owned(),
+        )?,
     };
     let (database_exists, _) =
         check_database_exists(database_name.as_str(), &configuration.database).await;

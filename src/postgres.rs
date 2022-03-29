@@ -1,30 +1,56 @@
 use crate::configuration::{CensoredString, DatabaseSettings};
-use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
+use anyhow::{Context, Error, Result};
+use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, RecyclingMethod};
 use md5;
+use native_tls::{Certificate, TlsConnector};
+use postgres_native_tls::MakeTlsConnector;
+use std::fs;
 use std::fs::{read_dir, File};
 use std::io::{BufReader, Read};
 use std::str::FromStr;
-use tokio_postgres::{Error, NoTls, SimpleQueryMessage};
+use tokio_postgres::{NoTls, SimpleQueryMessage};
 use uuid::Uuid;
 
 #[tracing::instrument(name = "Generating database connection pool.")]
-pub fn generate_connection_pool(postgres_connection_string: CensoredString) -> Pool {
+pub fn generate_connection_pool(
+    postgres_connection_string: CensoredString,
+    tls: bool,
+    cacertificates: Option<String>,
+) -> Result<Pool, Error> {
     let postgres_configuration =
-        tokio_postgres::Config::from_str(&postgres_connection_string).unwrap();
+        tokio_postgres::Config::from_str(&postgres_connection_string).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string '{}'", env!("CARGO_PKG_NAME"), &postgres_connection_string)})?;
     let deadpool_manager_config = ManagerConfig {
         recycling_method: RecyclingMethod::Verified,
     };
-    let deadpool_manager =
-        Manager::from_config(postgres_configuration, NoTls, deadpool_manager_config);
-    Pool::builder(deadpool_manager)
-        .max_size(16)
-        .build()
-        .unwrap()
+    if tls {
+        let cafile: String = if let Some(ca_file) = cacertificates {
+            ca_file
+        } else {
+            "/etc/ssl/certs/ca-certificates.crt".to_owned()
+        };
+        let certificate_bytes = fs::read(&cafile).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to read bytes from source file '{}'", env!("CARGO_PKG_NAME"), &cafile)})?;
+        let certificate = Certificate::from_pem(&certificate_bytes).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from contents read out of file '{}'", env!("CARGO_PKG_NAME"), &cafile)})?;
+        let connector = TlsConnector::builder()
+            .add_root_certificate(certificate)
+            .build()?;
+        let connector = MakeTlsConnector::new(connector);
+        let deadpool_manager =
+            Manager::from_config(postgres_configuration, connector, deadpool_manager_config);
+        Ok(Pool::builder(deadpool_manager)
+            .max_size(16)
+            .build().with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to build TLS connection pool to postgres", env!("CARGO_PKG_NAME"))})?)
+    } else {
+        let deadpool_manager =
+            Manager::from_config(postgres_configuration, NoTls, deadpool_manager_config);
+        Ok(Pool::builder(deadpool_manager)
+            .max_size(16)
+            .build().with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to build NoTLS connection pool to postgres", env!("CARGO_PKG_NAME"))})?)
+    }
 }
 
 #[tracing::instrument(name = "Getting postgres client from pool.", skip(pool))]
-pub async fn get_client(pool: Pool) -> Object {
-    pool.get().await.unwrap()
+pub async fn get_client(pool: Pool) -> Result<Object, PoolError> {
+    pool.get().await
 }
 
 #[tracing::instrument(name = "Checking if database exists.")]
@@ -36,8 +62,12 @@ pub async fn check_database_exists(
         data: database_settings.connection_string_without_database(),
         representation: database_settings.connection_string_without_database_censored(),
     };
-    let postgres_pool_without_database: Pool =
-        generate_connection_pool(connection_string_without_database);
+    let postgres_pool_without_database: Pool = generate_connection_pool(
+        connection_string_without_database,
+        database_settings.ssl.tls,
+        database_settings.ssl.cacertificates.to_owned(),
+    )
+    .unwrap();
     let postgres_client = postgres_pool_without_database
         .get()
         .await
@@ -68,7 +98,7 @@ pub async fn check_database_exists(
 }
 
 #[tracing::instrument(name = "Creating database.")]
-pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
+pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result<Pool, Error> {
     let database_name: &str = database_settings.database.as_ref().unwrap().as_str();
     let (exists, postgres_client) = check_database_exists(database_name, database_settings).await;
     if exists {
@@ -83,13 +113,17 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Pool {
         data: database_settings.connection_string(),
         representation: database_settings.connection_string_censored(),
     };
-    generate_connection_pool(connection_string)
+    generate_connection_pool(
+        connection_string,
+        database_settings.ssl.tls,
+        database_settings.ssl.cacertificates.to_owned(),
+    )
 }
 
 #[tracing::instrument(name = "Migrating Database.")]
 pub async fn migrate_database(mut database_settings: DatabaseSettings) -> Pool {
     // Ensure database creation
-    let postgres_pool = create_database(&mut database_settings).await;
+    let postgres_pool = create_database(&mut database_settings).await.unwrap();
     let postgres_client = postgres_pool
         .get()
         .await
@@ -204,6 +238,6 @@ pub async fn create_migrations_table(postgres_client: &Object) {
 pub async fn run_simple_query(
     postgres_client: &Object,
     query_statement: &str,
-) -> Result<Vec<SimpleQueryMessage>, Error> {
+) -> Result<Vec<SimpleQueryMessage>, tokio_postgres::Error> {
     postgres_client.simple_query(query_statement).await
 }
