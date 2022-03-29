@@ -15,23 +15,6 @@ ON CONFLICT ON CONSTRAINT _healthcheck_id_key
 DO 
     UPDATE SET updated_by = '20220305131000_postgresql_healthcheck_table.sql';
 
--- Create user 'newsletter'
-DO
-$do$
-BEGIN
-    IF NOT EXISTS (
-        SELECT FROM pg_catalog.pg_roles
-        WHERE  rolname = 'newsletter') THEN
-        CREATE USER newsletter with ENCRYPTED PASSWORD 'password';
-    END IF;
-END
-$do$;
-
-GRANT ALL PRIVILEGES ON SCHEMA newsletter to newsletter;
-
-ALTER TABLE newsletter.subscription
-OWNER TO newsletter;
-
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $_healthcheck_datetime$
     BEGIN

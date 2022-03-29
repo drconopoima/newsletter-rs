@@ -8,6 +8,8 @@ database:
   username: "newsletter"
   password: "password"
   database: "newsletter"
+  ssl:
+    tls: false
   migration:
     migrate: false
     folder: "./migrations"

@@ -78,7 +78,15 @@ pub struct DatabaseSettings {
     pub password: String,
     pub database: Option<String>,
     pub migration: Option<MigrationSettings>,
+    pub ssl: SslSettings,
 }
+
+#[derive(serde::Deserialize, Debug)]
+pub struct SslSettings {
+    pub tls: bool,
+    pub cacertificates: Option<String>,
+}
+
 impl fmt::Debug for DatabaseSettings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DatabaseSettings")

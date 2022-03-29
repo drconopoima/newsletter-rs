@@ -1,6 +1,9 @@
 application:
   address: "0.0.0.0"
 database:
+  ssl:
+    tls: true
+    cacertificates: "chain.crt"
   migration:
     migrate: true
     folder: "./migrations"
