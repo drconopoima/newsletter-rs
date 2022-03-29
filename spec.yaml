@@ -2,6 +2,13 @@
 name: newsletter-rs
 # Frankfurt (Germany - EU)
 region: fra
+databases:
+  # PG = Postgres
+  - engine: PG
+    name: newsletter
+    num_nodes: 1
+    size: db-s-dev-database
+    version: "12"
 services:
   - name: newsletter-rs
     # Relative to the repository root
@@ -20,10 +27,3 @@ services:
     instance_size_slug: basic-xxs
     routes:
       - path: /
-databases:
-  # PG = Postgres
-  - engine: PG
-    name: newsletter
-    num_nodes: 1
-    size: db-s-dev-database
-    version: "12"
