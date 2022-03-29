@@ -1,5 +1,8 @@
 use anyhow::{Context, Error, Result};
 use config::{Config, Environment, File, FileFormat};
+use serde_aux::field_attributes::{
+    deserialize_number_from_string, deserialize_option_number_from_string,
+};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use tracing::info;
@@ -47,13 +50,16 @@ pub struct Settings {
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
     pub address: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
+    #[serde(deserialize_with = "deserialize_option_number_from_string")]
     pub healthcachevalidityms: Option<u32>,
 }
 
 #[derive(serde::Deserialize)]
 pub struct AdminSettings {
     pub address: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
 }
 
@@ -65,6 +71,7 @@ pub struct MigrationSettings {
 
 #[derive(serde::Deserialize)]
 pub struct DatabaseSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub username: String,

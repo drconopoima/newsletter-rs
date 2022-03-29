@@ -68,13 +68,13 @@ cargo run
 Send subscription entries by using the `/subscription` endpoint
 
 ```bash
-curl -s -w'%{http_code}' "http://127.0.0.1:8000/subscription" -d "email=email%40drconopoima.com&name=Jane%20Doe"
+curl -s -w'\n%{http_code}\n' "http://127.0.0.1:8000/subscription" -d "email=email%40drconopoima.com&name=Jane%20Doe"
 ```
 
 Test correct operation by using `/healthcheck` endpoint
 
 ```bash
-curl -s -w'\n%{http_code}' http://127.0.0.1:65080/healthcheck | jq '.'
+curl -s -w'\n%{http_code}\n' http://127.0.0.1:65080/healthcheck | jq '.'
 ```
 
 ```text

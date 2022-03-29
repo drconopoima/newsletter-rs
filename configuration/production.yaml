@@ -1,2 +1,6 @@
 application:
   address: "0.0.0.0"
+database:
+  migration:
+    migrate: true
+    folder: "./migrations"

@@ -19,7 +19,7 @@ COPY ./src ./src
 # Build for release
 RUN cargo build --release
 
-FROM docker.io/debian:buster-slim
+FROM docker.io/debian:bullseye-slim
 
 # Copy build artifact
 COPY --from=build /newsletter-rs/target/release/newsletter-rs .
@@ -27,5 +27,8 @@ COPY --from=build /newsletter-rs/target/release/newsletter-rs .
 COPY ./configuration ./configuration
 
 ENV APP__ENVIRONMENT production
+
+COPY ./migrations ./migrations
+
 # Startup command
 CMD ["./newsletter-rs"]

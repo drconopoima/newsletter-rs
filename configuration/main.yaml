@@ -2,9 +2,6 @@ application:
   port: 8000
   address: "127.0.0.1"
   healthcachevalidityms: 1000
-admin:
-  port: 65080
-  address: "127.0.0.1"
 database:
   host: "127.0.0.1"
   port: 5432
