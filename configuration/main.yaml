@@ -5,7 +5,7 @@ application:
 database:
   host: "127.0.0.1"
   port: 5432
-  username: "newsletter"
+  username: "postgres"
   password: "password"
   database: "newsletter"
   ssl:
