@@ -37,6 +37,9 @@ serde-aux = "^3"
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
 
+[patch.crates-io]
+bytes = { git = "https://github.com/tokio-rs/bytes", branch = "tsan-support" }
+
 [dev-dependencies]
 reqwest = { version = "^0.11", features = ["json"] }
 serde_urlencoded = "^0.7"
