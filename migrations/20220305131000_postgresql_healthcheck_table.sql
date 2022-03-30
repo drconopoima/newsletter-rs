@@ -7,8 +7,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS _healthcheck (
     CONSTRAINT _healthcheck_unique_row CHECK (id)
 );
 
-REVOKE DELETE, TRUNCATE ON public._healthcheck FROM public;
-
 INSERT INTO _healthcheck (id, updated_by)
 VALUES (true, '20220305131000_postgresql_healthcheck_table.sql')
 ON CONFLICT ON CONSTRAINT _healthcheck_id_key 

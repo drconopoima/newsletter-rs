@@ -124,8 +124,11 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
     let statement_write = match postgres_client
         .prepare_cached(
             r#"
-                UPDATE _healthcheck set updated_by=$1
-                WHERE id=true RETURNING datetime
+                INSERT INTO _healthcheck (id,updated_by)
+                VALUES (true, $1)
+                ON CONFLICT (id) DO UPDATE
+                    SET updated_by=$1
+                RETURNING datetime
             "#,
         )
         .await
