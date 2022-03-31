@@ -16,12 +16,12 @@ name="newsletter-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = { version="^4" }
-serde = { version = "^1", features = ["derive"] }
+actix-web = { version = "^4" }
+serde = { version = "^1" }
 tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
-config = { version="^0.12", default-features = false, features = ["yaml"] }
-futures = { version="^0.3" }
-tokio-postgres = { version="^0.7", features=[ "with-uuid-0_8" , "with-time-0_3" ] }
+config = { version = "^0.12", default-features = false, features = ["yaml"] }
+futures = { version = "^0.3" }
+tokio-postgres = { version = "^0.7", features=[ "with-uuid-0_8" , "with-time-0_3" ] }
 uuid = { version = "^0.8", features = ["v4"] }
 regex = { version = "^1" }
 deadpool-postgres = { version = "^0.10" }
@@ -33,12 +33,12 @@ tracing-bunyan-formatter = "^0.3"
 tracing-log = "^0.1"
 anyhow = "^1"
 tracing-actix-web = { version = "^0.5" }
-serde-aux = "^3"
+serde-aux = { version = "^3", default-features = false, features = [] }
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
 
 [dev-dependencies]
 reqwest = { version = "^0.11", features = ["json"] }
 serde_urlencoded = "^0.7"
-lazy_static="^1"
+lazy_static = "^1"
 
