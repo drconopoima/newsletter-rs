@@ -74,14 +74,14 @@ async fn main() -> Result<()> {
                 generate_connection_pool(
                     connection_string,
                     database_settings.ssl.tls,
-                    database_settings.ssl.cacertificates.to_owned(),
+                    database_settings.ssl.cacertificates.as_ref(),
                 )?
             }
         }
         _ => generate_connection_pool(
             connection_string,
             database_settings.ssl.tls,
-            database_settings.ssl.cacertificates.to_owned(),
+            database_settings.ssl.cacertificates.as_ref(),
         )?,
     };
     let (database_exists, _) =

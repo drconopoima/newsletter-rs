@@ -15,7 +15,7 @@ use uuid::Uuid;
 pub fn generate_connection_pool(
     postgres_connection_string: CensoredString,
     tls: bool,
-    cacertificates: Option<String>,
+    cacertificates: Option<&String>,
 ) -> Result<Pool, Error> {
     let postgres_configuration =
         tokio_postgres::Config::from_str(&postgres_connection_string).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string '{}'", env!("CARGO_PKG_NAME"), &postgres_connection_string)})?;
@@ -23,10 +23,21 @@ pub fn generate_connection_pool(
         recycling_method: RecyclingMethod::Verified,
     };
     if tls {
-        let certificate = Certificate::from_pem(&cacertificates.unwrap().try_into_bytes().unwrap()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from database.ssl.cacertificates variable", env!("CARGO_PKG_NAME"))})?;
-        let connector = TlsConnector::builder()
-            .add_root_certificate(certificate)
-            .build()?;
+        let connector: TlsConnector = if let Some(cert) = cacertificates {
+            let mut connector = TlsConnector::builder();
+            let mut vec_certificates: Vec<&str> =
+                cert.split_inclusive("-----END CERTIFICATE-----").collect();
+            vec_certificates.pop(); // remove last element from Vec that split_inclusive returns empty
+            for certificate_string in vec_certificates {
+                let cert_string = <&str>::clone(&certificate_string).to_owned();
+                println!("--------------------------------------------------------\n--------------------------------------------------------!\n{}!--------------------------------------------------------\n--------------------------------------------------------\n", cert_string);
+                let certificate = Certificate::from_pem(&cert_string.try_into_bytes().unwrap()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from database.ssl.cacertificates variable", env!("CARGO_PKG_NAME"))})?;
+                connector.add_root_certificate(certificate);
+            }
+            connector.build()?
+        } else {
+            TlsConnector::builder().build()?
+        };
         let connector = MakeTlsConnector::new(connector);
         let deadpool_manager =
             Manager::from_config(postgres_configuration, connector, deadpool_manager_config);
@@ -59,7 +70,7 @@ pub async fn check_database_exists(
     let postgres_pool_without_database: Pool = generate_connection_pool(
         connection_string_without_database,
         database_settings.ssl.tls,
-        database_settings.ssl.cacertificates.to_owned(),
+        database_settings.ssl.cacertificates.as_ref(),
     )
     .unwrap();
     let postgres_client = postgres_pool_without_database
@@ -110,7 +121,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
     generate_connection_pool(
         connection_string,
         database_settings.ssl.tls,
-        database_settings.ssl.cacertificates.to_owned(),
+        database_settings.ssl.cacertificates.as_ref(),
     )
 }
 

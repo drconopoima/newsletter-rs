@@ -3,6 +3,8 @@ application:
 database:
   ssl:
     tls: true
+    # Additional trusted certificate authorities
+    # System's CAs trusted by default
     cacertificates: |
       -----BEGIN CERTIFICATE-----
       M***EXAMPLE***
