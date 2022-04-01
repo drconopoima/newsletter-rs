@@ -15,19 +15,22 @@ use uuid::Uuid;
 pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector, Error> {
     Ok(if let Some(cert) = cacertificates {
         let mut connector = TlsConnector::builder();
-        let mut vec_certificates: Vec<&str> =
+        let vec_certificates: Vec<&str> =
             cert.split_inclusive("-----END CERTIFICATE-----").collect();
-        vec_certificates.pop(); // remove last element from Vec that split_inclusive returns empty
         for certificate_string in vec_certificates {
             let cert_string = <&str>::clone(&certificate_string).to_owned();
-            if let Ok(cert) = Certificate::from_pem(
+            if let Ok(certificate) = Certificate::from_pem(
                 &cert_string
                     .try_into_bytes()
                     .unwrap_or_else(|_| Bytes::new()),
             ) {
-                connector.add_root_certificate(cert);
+                connector.add_root_certificate(certificate);
             } else {
-                warn!("{}::postgres::generate_connection_pool: Failed to create certificate from bytes: {}", env!("CARGO_PKG_NAME"), cert);
+                warn!(
+                    "{}::postgres::get_tls_connector: Failed to create certificate from bytes: {}",
+                    env!("CARGO_PKG_NAME"),
+                    certificate_string
+                );
             };
         }
         connector.build()?
