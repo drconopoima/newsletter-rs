@@ -1,5 +1,5 @@
 use crate::configuration::{CensoredString, DatabaseSettings};
-use actix_web::body::MessageBody;
+use actix_web::{body::MessageBody, web::Bytes};
 use anyhow::{Context, Error, Result};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, RecyclingMethod};
 use md5;
@@ -9,7 +9,32 @@ use std::fs::{read_dir, File};
 use std::io::{BufReader, Read};
 use std::str::FromStr;
 use tokio_postgres::{NoTls, SimpleQueryMessage};
+use tracing::warn;
 use uuid::Uuid;
+
+pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector, Error> {
+    Ok(if let Some(cert) = cacertificates {
+        let mut connector = TlsConnector::builder();
+        let mut vec_certificates: Vec<&str> =
+            cert.split_inclusive("-----END CERTIFICATE-----").collect();
+        vec_certificates.pop(); // remove last element from Vec that split_inclusive returns empty
+        for certificate_string in vec_certificates {
+            let cert_string = <&str>::clone(&certificate_string).to_owned();
+            if let Ok(cert) = Certificate::from_pem(
+                &cert_string
+                    .try_into_bytes()
+                    .unwrap_or_else(|_| Bytes::new()),
+            ) {
+                connector.add_root_certificate(cert);
+            } else {
+                warn!("{}::postgres::generate_connection_pool: Failed to create certificate from bytes: {}", env!("CARGO_PKG_NAME"), cert);
+            };
+        }
+        connector.build()?
+    } else {
+        TlsConnector::builder().build()?
+    })
+}
 
 #[tracing::instrument(name = "Generating database connection pool.")]
 pub fn generate_connection_pool(
@@ -23,21 +48,7 @@ pub fn generate_connection_pool(
         recycling_method: RecyclingMethod::Verified,
     };
     if tls {
-        let connector: TlsConnector = if let Some(cert) = cacertificates {
-            let mut connector = TlsConnector::builder();
-            let mut vec_certificates: Vec<&str> =
-                cert.split_inclusive("-----END CERTIFICATE-----").collect();
-            vec_certificates.pop(); // remove last element from Vec that split_inclusive returns empty
-            for certificate_string in vec_certificates {
-                let cert_string = <&str>::clone(&certificate_string).to_owned();
-                println!("--------------------------------------------------------\n--------------------------------------------------------!\n{}!--------------------------------------------------------\n--------------------------------------------------------\n", cert_string);
-                let certificate = Certificate::from_pem(&cert_string.try_into_bytes().unwrap()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to create certificate from database.ssl.cacertificates variable", env!("CARGO_PKG_NAME"))})?;
-                connector.add_root_certificate(certificate);
-            }
-            connector.build()?
-        } else {
-            TlsConnector::builder().build()?
-        };
+        let connector: TlsConnector = get_tls_connector(cacertificates)?;
         let connector = MakeTlsConnector::new(connector);
         let deadpool_manager =
             Manager::from_config(postgres_configuration, connector, deadpool_manager_config);
