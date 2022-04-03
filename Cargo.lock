@@ -311,7 +311,7 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 [[package]]
 name = "bytes"
 version = "1.1.0"
-source = "git+https://github.com/tokio-rs/bytes?branch=tsan-support#db46e3ba28ca56a5218723724d69b750970daa66"
+source = "git+https://github.com/tokio-rs/bytes?branch=tsan-support#007fb7d63fcf14102c39c180b4fa60fe8f0fd233"
 
 [[package]]
 name = "bytestring"
