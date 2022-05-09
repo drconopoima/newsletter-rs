@@ -6,7 +6,8 @@
 ├─────────────────────────────────┤
 │ id: uuid (PK)                   │
 │ email: citext                   │
-│ name: text                      │
+│ first_name:  char varying(126)  │
+│ last_name:  char varying(126)   │
 │ subscription_date: timestamptz  │
 └─────────────────────────────────┘
 ```
@@ -16,7 +17,7 @@
 │  _initialization_migrations     │
 ├─────────────────────────────────┤
 │ version: serial (PK)            │
-│ filename: text                  │
+│ filename: char varying(255)     │
 │ installed_on: timestamptz       │
 | md5_hash: uuid                  |
 └─────────────────────────────────┘
