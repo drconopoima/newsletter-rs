@@ -124,8 +124,7 @@ async fn main() -> Result<()> {
         postgres_connection,
         admin_bind_address,
         health_cache_validity_ms,
-    )
-    .unwrap();
+    )?;
     if server2.is_some() {
         future::try_join(server1, server2.unwrap()).await?;
         return Ok(());
