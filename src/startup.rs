@@ -54,6 +54,7 @@ pub fn run(
                 .app_data(arc_cached_healthcheck.clone())
         })
         .listen(listener)?
+        .workers(3)
         .run();
         return Ok((server, None));
     }
@@ -77,6 +78,7 @@ pub fn run(
             .app_data(postgres_pool1.clone())
     })
     .listen(listener)?
+    .workers(1)
     .run();
     let server2 = HttpServer::new(move || {
         let arc_cached_healthcheck_readiness = arc_cached_healthcheck.clone();
@@ -103,6 +105,7 @@ pub fn run(
             .app_data(arc_cached_healthcheck.clone())
     })
     .listen(admin_listener)?
+    .workers(5)
     .run();
     Ok((server1, Some(server2)))
 }
