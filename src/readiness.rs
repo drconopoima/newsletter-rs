@@ -109,10 +109,10 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
         );
     }
     let row_results = optional_row.unwrap();
-    let postgres_read_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
+    let postgres_read_timestamp: OffsetDateTime = row_results[0].get("datetime");
     let postgres_read_timestamp_string = to_rfc3339(postgres_read_timestamp).unwrap();
-    let postgres_recovery: bool = row_results[0].get(&"recovery");
-    let postgres_version: &str = row_results[0].get(&"pg_version");
+    let postgres_recovery: bool = row_results[0].get("recovery");
+    let postgres_version: &str = row_results[0].get("pg_version");
     let output_pass = "";
     let postgres_read = build_postgres_read_response(
         STATUS_PASS,
@@ -190,7 +190,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
         );
     }
     let row_results = optional_row.unwrap();
-    let postgres_write_timestamp: OffsetDateTime = row_results[0].get(&"datetime");
+    let postgres_write_timestamp: OffsetDateTime = row_results[0].get("datetime");
     let postgres_write_timestamp_string = to_rfc3339(postgres_write_timestamp).unwrap();
     postgres_write = build_postgres_write_response(
         STATUS_PASS,

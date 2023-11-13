@@ -14,11 +14,10 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
                 None
             }
         };
-    if optional_cache_rwlock.is_some() {
-        let cache_rwlock = optional_cache_rwlock.unwrap();
+    if let Some(cache_rwlock) = optional_cache_rwlock {
         if let Ok(cache) = cache_rwlock.try_read() {
             if let Some(healthcheck) = &cache.cache {
-                return HttpResponse::Ok().json(&healthcheck);
+                return HttpResponse::Ok().json(healthcheck);
             }
         }
     };
