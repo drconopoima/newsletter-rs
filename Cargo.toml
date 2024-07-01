@@ -1,6 +1,6 @@
 [package]
 name = "newsletter-rs"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Luis Jesus Diaz Manzo <luis@drconopoima.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -19,26 +19,26 @@ name="newsletter-rs"
 actix-web = { version = "^4" }
 serde = { version = "^1" }
 tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
-config = { version = "^0.12", default-features = false, features = ["yaml"] }
+config = { version = "^0.14", default-features = false, features = ["yaml"] }
 futures = { version = "^0.3" }
-tokio-postgres = { version = "^0.7", features=[ "with-uuid-0_8" , "with-time-0_3" ] }
-uuid = { version = "^0.8", features = ["v4"] }
+tokio-postgres = { version = "^0.7", features=[ "with-uuid-1" , "with-time-0_3" ] }
+uuid = { version = "^1", features = ["v7"] }
 regex = { version = "^1" }
-deadpool-postgres = { version = "^0.10" }
+deadpool-postgres = { version = "^0.14" }
 tracing = { version = "^0.1", features = [ "log" ] }
 md5 = { version = "^0.7" }
 time = { version = "^0.3", features=["formatting"] }
 tracing-subscriber = { version = "^0.3", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "^0.3"
-tracing-log = "^0.1"
+tracing-log = "^0.2"
 anyhow = "^1"
-tracing-actix-web = { version = "^0.5" }
-serde-aux = { version = "^3", default-features = false, features = [] }
+tracing-actix-web = { version = "^0.7" }
+serde-aux = { version = "^4", default-features = false, features = [] }
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
 
 [dev-dependencies]
-reqwest = { version = "^0.11", features = ["json"] }
+reqwest = { version = "^0.12", features = ["json"] }
 serde_urlencoded = "^0.7"
 lazy_static = "^1"
 

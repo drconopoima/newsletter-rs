@@ -9,6 +9,7 @@ You'll need to install:
 - [Podman](https://podman.io/getting-started/installation) or [Docker](https://docs.docker.com/get-docker/)
 - [PostgreSQL CLI client](https://www.postgresql.org/download/)
 - Optionally for loadtesting: [k6](https://k6.io/docs/getting-started/installation/)
+- For building v0.1.1 at least rustc 1.75.0 (coming from dependency deadpool-runtime>0.1.4)
 
 ### Install Podman
 
