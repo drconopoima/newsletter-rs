@@ -1,6 +1,6 @@
 [package]
 name = "newsletter-rs"
-version = "0.1.1"
+version = "0.2.0-pre"
 authors = ["Luis Jesus Diaz Manzo <luis@drconopoima.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -36,6 +36,7 @@ tracing-actix-web = { version = "^0.7" }
 serde-aux = { version = "^4", default-features = false, features = [] }
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
+zeroize = { "version" = "^1", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 reqwest = { version = "^0.12", features = ["json"] }

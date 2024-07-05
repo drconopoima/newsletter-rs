@@ -1,4 +1,4 @@
-use crate::configuration::{CensoredString, DatabaseSettings};
+use crate::configuration::{SecretString, DatabaseSettings};
 use actix_web::{body::MessageBody, web::Bytes};
 use anyhow::{Context, Error, Result};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, RecyclingMethod};
@@ -11,6 +11,7 @@ use std::str::FromStr;
 use tokio_postgres::{NoTls, SimpleQueryMessage};
 use tracing::warn;
 use uuid::Uuid;
+use crate::configuration::ExposeSecret;
 
 pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector, Error> {
     Ok(if let Some(cert) = cacertificates {
@@ -41,12 +42,12 @@ pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector
 
 #[tracing::instrument(name = "Generating database connection pool.")]
 pub fn generate_connection_pool(
-    postgres_connection_string: CensoredString,
+    postgres_connection_string: SecretString,
     tls: bool,
     cacertificates: Option<&String>,
 ) -> Result<Pool, Error> {
     let postgres_configuration =
-        tokio_postgres::Config::from_str(&postgres_connection_string).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string '{}'", env!("CARGO_PKG_NAME"), &postgres_connection_string)})?;
+        tokio_postgres::Config::from_str(&postgres_connection_string.expose_secret()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string '{}'", env!("CARGO_PKG_NAME"), &postgres_connection_string.expose_secret())})?;
     let deadpool_manager_config = ManagerConfig {
         recycling_method: RecyclingMethod::Verified,
     };
@@ -77,10 +78,7 @@ pub async fn check_database_exists(
     database_name: &str,
     database_settings: &DatabaseSettings,
 ) -> (bool, Object) {
-    let connection_string_without_database = CensoredString {
-        data: database_settings.connection_string_without_database(),
-        representation: database_settings.connection_string_without_database_censored(),
-    };
+    let connection_string_without_database: SecretString = SecretString::from_str(&database_settings.connection_string_without_database()).unwrap();
     let postgres_pool_without_database: Pool = generate_connection_pool(
         connection_string_without_database,
         database_settings.ssl.tls,
@@ -128,10 +126,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
             .await
             .expect("Failed to create database");
     }
-    let connection_string = CensoredString {
-        data: database_settings.connection_string(),
-        representation: database_settings.connection_string_censored(),
-    };
+    let connection_string: SecretString = SecretString::from_str(&database_settings.connection_string()).unwrap();
     generate_connection_pool(
         connection_string,
         database_settings.ssl.tls,

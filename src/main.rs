@@ -4,7 +4,7 @@ use deadpool_postgres::Pool;
 use futures::future;
 use newsletter_rs::{
     configuration::{
-        get_configuration, CensoredString, DatabaseSettings, MigrationSettings, Settings,
+        get_configuration, SecretString, DatabaseSettings, MigrationSettings, Settings,
         SslSettings,
     },
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
@@ -13,6 +13,7 @@ use newsletter_rs::{
 };
 use std::net::TcpListener;
 use std::time::Duration;
+use std::str::FromStr;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -31,10 +32,7 @@ async fn main() -> Result<()> {
             config_file, error
         )
     });
-    let connection_string = CensoredString {
-        data: configuration.database.connection_string(),
-        representation: configuration.database.connection_string_censored(),
-    };
+    let connection_string: SecretString = SecretString::from_str(&configuration.database.connection_string())?;
     let database_name = match configuration.database.database.as_ref() {
         Some(database_name) => database_name.to_owned(),
         _ => {

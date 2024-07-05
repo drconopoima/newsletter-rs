@@ -4,39 +4,163 @@ use serde_aux::field_attributes::{
     deserialize_number_from_string, deserialize_option_number_from_string,
 };
 use std::fmt;
-use std::ops::{Deref, DerefMut};
+use std::any::type_name;
+use std::str::FromStr;
 use tracing::info;
+use zeroize::Zeroize;
+use serde::Serialize;
 
 pub static CENSOR_STRING: &str = "***REMOVED***";
 pub static CONFIGURATION_SUBDIRECTORY: &str = "configuration";
 
+/// Marker trait for secrets which are allowed to be cloned
+pub trait CloneableSecret: Clone + Zeroize {}
+
+/// Implement `CloneableSecret` on arrays of types that impl `Clone` and
+/// `Zeroize`.
+macro_rules! impl_cloneable_secret_for_array {
+    ($($size:expr),+) => {
+        $(
+            impl<T: Clone + Zeroize> CloneableSecret for [T; $size] {}
+        )+
+     };
+}
+
+impl_cloneable_secret_for_array!(
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+    51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
+);
+
+pub trait SerializableSecret: Serialize {}
+
+#[cfg(feature = "serde")]
+impl<'de, T> Deserialize<'de> for Secret<T>
+where
+    T: Zeroize + Clone + de::DeserializeOwned + Sized,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        T::deserialize(deserializer).map(Secret::new)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T> Serialize for Secret<T>
+where
+    T: Zeroize + SerializableSecret + Serialize + Sized,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        self.expose_secret().serialize(serializer)
+    }
+}
+
+/// Expose a reference to an inner secret
+pub trait ExposeSecret<S> {
+    /// Expose secret: this is the only method providing access to a secret.
+    fn expose_secret(&self) -> &S;
+}
+
+/// Debugging trait which is specialized for handling secret values
+pub trait DebugSecret {
+    /// Format information about the secret's type.
+    ///
+    /// This can be thought of as an equivalent to [`Debug::fmt`], but one
+    /// which by design does not permit access to the secret value.
+    fn debug_secret(f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.write_str("[REDACTED ")?;
+        f.write_str(type_name::<Self>())?;
+        f.write_str("]")
+    }
+}
+
 #[derive(serde::Deserialize)]
-pub struct CensoredString {
-    pub data: String,
-    pub representation: String,
+pub struct Secret<S>
+where
+    S: Zeroize,
+{
+    /// Inner secret value
+    inner_secret: S,
 }
-// Antipattern Deref polymorphism to emulate inheritance. Read https://github.com/rust-unofficial/patterns/blob/main/anti_patterns/deref.md
-impl Deref for CensoredString {
-    type Target = String;
-    fn deref(&self) -> &String {
-        &self.data
+
+impl<S> Secret<S>
+where
+    S: Zeroize,
+{
+    /// Take ownership of a secret value
+    pub fn new(secret: S) -> Self {
+        Secret {
+            inner_secret: secret,
+        }
     }
 }
-// Deref coercion for DerefMut to emulate inheritance. Read https://doc.rust-lang.org/std/ops/trait.DerefMut.html
-impl DerefMut for CensoredString {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
+
+impl<S> ExposeSecret<S> for Secret<S>
+where
+    S: Zeroize,
+{
+    fn expose_secret(&self) -> &S {
+        &self.inner_secret
     }
 }
-impl fmt::Debug for CensoredString {
+
+impl<S> From<S> for Secret<S>
+where
+    S: Zeroize,
+{
+    fn from(secret: S) -> Self {
+        Self::new(secret)
+    }
+}
+
+impl<S> Clone for Secret<S>
+where
+    S: CloneableSecret,
+{
+    fn clone(&self) -> Self {
+        Secret {
+            inner_secret: self.inner_secret.clone(),
+        }
+    }
+}
+
+impl<S> fmt::Debug for Secret<S>
+where
+    S: Zeroize + DebugSecret,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.representation, f)
+        f.write_str("Secret(")?;
+        S::debug_secret(f)?;
+        f.write_str(")")
     }
 }
-impl fmt::Display for CensoredString {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.representation, f)
+
+impl<S> Drop for Secret<S>
+where
+    S: Zeroize,
+{
+    fn drop(&mut self) {
+        // Zero the secret out from memory
+        self.inner_secret.zeroize();
+    }
+}
+
+/// Secret strings
+pub type SecretString = Secret<String>;
+
+impl DebugSecret for String {}
+impl CloneableSecret for String {}
+
+impl FromStr for SecretString {
+    type Err = core::convert::Infallible;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        Ok(SecretString::new(src.to_string()))
     }
 }
 
@@ -75,7 +199,7 @@ pub struct DatabaseSettings {
     pub port: u16,
     pub host: String,
     pub username: String,
-    pub password: String,
+    pub password: SecretString,
     pub database: Option<String>,
     pub migration: Option<MigrationSettings>,
     pub ssl: SslSettings,
@@ -103,13 +227,13 @@ impl DatabaseSettings {
         if self.database.is_none() {
             format!(
                 "postgresql://{}:{}@{}:{}",
-                self.username, self.password, self.host, self.port
+                self.username, self.password.expose_secret(), self.host, self.port
             )
         } else {
             format!(
                 "postgresql://{}:{}@{}:{}/{}",
                 self.username,
-                self.password,
+                self.password.expose_secret(),
                 self.host,
                 self.port,
                 self.database.as_ref().unwrap()
@@ -119,7 +243,7 @@ impl DatabaseSettings {
     pub fn connection_string_without_database(&self) -> String {
         format!(
             "postgresql://{}:{}@{}:{}",
-            self.username, self.password, self.host, self.port
+            self.username, self.password.expose_secret(), self.host, self.port
         )
     }
     pub fn connection_string_censored(&self) -> String {
