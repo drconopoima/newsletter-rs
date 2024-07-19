@@ -9,7 +9,6 @@ use std::net::TcpListener;
 use std::sync::Mutex;
 use std::{
     io::{sink, stdout},
-    ptr::addr_of_mut,
     time::Duration,
 };
 use uuid::Uuid;
@@ -17,17 +16,10 @@ use uuid::Uuid;
 extern crate lazy_static;
 
 lazy_static! {
-    static ref LAUNCH_TRACING_LOCK: Mutex<bool> = Mutex::new(true);
+    static ref TRACING_LAUNCH_LOCK: Mutex<bool> = Mutex::new(true);
 }
 
-struct MemoizeTracingInitialization {
-    is_initialized: bool,
-}
-
-static mut MEMOIZED_TRACING_INITIALIZATION: MemoizeTracingInitialization =
-    MemoizeTracingInitialization {
-        is_initialized: false,
-    };
+static mut TRACING_IS_INITIALIZED: bool = false;
 
 pub struct ServerPostgres {
     pub address: String,
@@ -36,9 +28,9 @@ pub struct ServerPostgres {
 
 // Launch an instance for our HTTP server in the background
 async fn launch_http_server() -> ServerPostgres {
-    let just_once_tracing_guard = LAUNCH_TRACING_LOCK.lock().unwrap();
-    let tracing_initialization = unsafe { addr_of_mut!(MEMOIZED_TRACING_INITIALIZATION) };
-    if !unsafe { (*tracing_initialization).is_initialized } == true {
+    let tracing_launch_lock = TRACING_LAUNCH_LOCK.lock().unwrap();
+    let tracing_is_initialized = unsafe { TRACING_IS_INITIALIZED };
+    if !tracing_is_initialized {
         let filter_level = "debug".to_owned();
         let subscriber_name = "test".to_owned();
         if std::env::var("TEST_LOG").is_ok() {
@@ -48,9 +40,9 @@ async fn launch_http_server() -> ServerPostgres {
             let subscriber = get_subscriber(subscriber_name, filter_level, sink);
             init_subscriber(subscriber).expect("Failed to initialize subscriber");
         }
-        unsafe { (*tracing_initialization).is_initialized = true };
+        unsafe { TRACING_IS_INITIALIZED = true };
     }
-    std::mem::drop(just_once_tracing_guard);
+    std::mem::drop(tracing_launch_lock);
     let config_file: &str = "main.yaml";
     let mut configuration = get_configuration(config_file).unwrap_or_else(|error| {
         panic!(
