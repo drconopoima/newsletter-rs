@@ -22,7 +22,7 @@ pub fn run(
         } else {
             Duration::from_millis(1000)
         };
-    let cached_healthcheck = CachedHealth { cache: None };
+    let cached_healthcheck = CachedHealth(None);
     let arc_cached_healthcheck: Arc<RwLock<CachedHealth>> =
         Arc::new(RwLock::from(cached_healthcheck));
     if admin_bind_address.is_none() {
@@ -37,7 +37,7 @@ pub fn run(
                         postgres_pool_readiness.clone(),
                     ));
                     if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
-                        cache.cache = Some(healthresponse);
+                        cache.0 = Some(healthresponse);
                     }
                 }
             });
@@ -88,7 +88,7 @@ pub fn run(
                 let healthresponse =
                     futures::executor::block_on(probe_readiness(postgres_pool_readiness.clone()));
                 if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
-                    cache.cache = Some(healthresponse);
+                    cache.0 = Some(healthresponse);
                 }
             }
         });

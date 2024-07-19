@@ -3,9 +3,8 @@ use deadpool_postgres::Pool;
 use std::sync::Arc;
 use std::time::SystemTime;
 use time::{error, format_description::well_known::Rfc3339, OffsetDateTime};
-pub struct CachedHealth {
-    pub cache: Option<HealthResponse>,
-}
+
+pub struct CachedHealth(pub Option<HealthResponse>);
 
 // Healthcheck response format for HTTP APIs https://inadarei.github.io/rfc-healthcheck/
 #[derive(serde::Serialize)]
