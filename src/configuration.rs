@@ -8,7 +8,7 @@ use std::any::type_name;
 use std::str::FromStr;
 use tracing::info;
 use zeroize::Zeroize;
-use serde::Serialize;
+use serde::{de, ser, Deserialize, Serialize};
 
 pub static CENSOR_STRING: &str = "***REMOVED***";
 pub static CONFIGURATION_SUBDIRECTORY: &str = "configuration";
@@ -34,7 +34,6 @@ impl_cloneable_secret_for_array!(
 
 pub trait SerializableSecret: Serialize {}
 
-#[cfg(feature = "serde")]
 impl<'de, T> Deserialize<'de> for Secret<T>
 where
     T: Zeroize + Clone + de::DeserializeOwned + Sized,
@@ -47,7 +46,6 @@ where
     }
 }
 
-#[cfg(feature = "serde")]
 impl<T> Serialize for Secret<T>
 where
     T: Zeroize + SerializableSecret + Serialize + Sized,
@@ -79,7 +77,6 @@ pub trait DebugSecret {
     }
 }
 
-#[derive(serde::Deserialize)]
 pub struct Secret<S>
 where
     S: Zeroize,
