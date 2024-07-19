@@ -16,7 +16,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         };
     if let Some(cache_rwlock) = optional_cache_rwlock {
         if let Ok(cache) = cache_rwlock.try_read() {
-            if let Some(healthcheck) = &cache.cache {
+            if let Some(healthcheck) = &cache.0 {
                 return HttpResponse::Ok().json(healthcheck);
             }
         }

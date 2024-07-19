@@ -3,12 +3,12 @@ use deadpool_postgres::Pool;
 use std::sync::Arc;
 use std::time::SystemTime;
 use time::{error, format_description::well_known::Rfc3339, OffsetDateTime};
-pub struct CachedHealth {
-    pub cache: Option<HealthResponse>,
-}
+use serde::Serialize;
+
+pub struct CachedHealth(pub Option<String>);
 
 // Healthcheck response format for HTTP APIs https://inadarei.github.io/rfc-healthcheck/
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct HealthResponse {
     pub status: String,
     pub checks: ChecksResponse,
@@ -17,14 +17,13 @@ pub struct HealthResponse {
     pub version: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct ChecksResponse {
     pub postgres_read: PostgresReadCheck,
     pub postgres_write: PostgresWriteCheck,
 }
 
-#[derive(serde::Serialize)]
-
+#[derive(Serialize)]
 pub struct PostgresReadCheck {
     pub status: String,
     pub time: Option<String>,
@@ -36,8 +35,7 @@ pub static STATUS_PASS: &str = "pass";
 pub static STATUS_FAIL: &str = "fail";
 pub static STATUS_WARN: &str = "warn";
 
-#[derive(serde::Serialize)]
-
+#[derive(Serialize)]
 pub struct PostgresWriteCheck {
     pub status: String,
     pub time: Option<String>,

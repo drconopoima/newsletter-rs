@@ -22,7 +22,7 @@ pub fn run(
         } else {
             Duration::from_millis(1000)
         };
-    let cached_healthcheck = CachedHealth { cache: None };
+    let cached_healthcheck = CachedHealth(None);
     let arc_cached_healthcheck: Arc<RwLock<CachedHealth>> =
         Arc::new(RwLock::from(cached_healthcheck));
     if admin_bind_address.is_none() {
@@ -36,8 +36,10 @@ pub fn run(
                     let healthresponse = futures::executor::block_on(probe_readiness(
                         postgres_pool_readiness.clone(),
                     ));
-                    if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
-                        cache.cache = Some(healthresponse);
+                    if let Ok(mut cache) = arc_cached_healthcheck_readiness.write(){
+                        *cache = CachedHealth(if let Ok(content) = serde_json::to_string(&healthresponse) {
+                            Some(content)
+                        } else { None });
                     }
                 }
             });
@@ -54,6 +56,7 @@ pub fn run(
                 .app_data(arc_cached_healthcheck.clone())
         })
         .listen(listener)?
+        .workers(6)
         .run();
         return Ok((server, None));
     }
@@ -77,6 +80,7 @@ pub fn run(
             .app_data(postgres_pool1.clone())
     })
     .listen(listener)?
+    .workers(6)
     .run();
     let server2 = HttpServer::new(move || {
         let arc_cached_healthcheck_readiness = arc_cached_healthcheck.clone();
@@ -87,11 +91,13 @@ pub fn run(
                 futures::executor::block_on(interval.tick());
                 let healthresponse =
                     futures::executor::block_on(probe_readiness(postgres_pool_readiness.clone()));
-                if let Ok(mut cache) = arc_cached_healthcheck_readiness.write() {
-                    cache.cache = Some(healthresponse);
+                    if let Ok(mut cache) = arc_cached_healthcheck_readiness.write(){
+                        *cache = CachedHealth(if let Ok(content) = serde_json::to_string(&healthresponse) {
+                            Some(content)
+                        } else { None });
+                    };
                 }
-            }
-        });
+            });
         App::new()
             // Logging middleware
             .wrap(TracingLogger::default())
@@ -103,6 +109,7 @@ pub fn run(
             .app_data(arc_cached_healthcheck.clone())
     })
     .listen(admin_listener)?
+    .workers(6)
     .run();
     Ok((server1, Some(server2)))
 }

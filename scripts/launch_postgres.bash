@@ -68,7 +68,7 @@ function containertech {
 }
 elif command -v docker 1>/dev/null 2>&1; then
 function containertech {
-    docker "$@"
+    podman "$@"
 }
 else
 echo >&2 "[ERROR] No container library (Podman or Docker) is installed."

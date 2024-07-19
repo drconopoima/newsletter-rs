@@ -18,6 +18,7 @@ name="newsletter-rs"
 [dependencies]
 actix-web = { version = "^4" }
 serde = { version = "^1" }
+serde_json = { version = "^1" }
 tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
 config = { version = "^0.14", default-features = false, features = ["yaml"] }
 futures = { version = "^0.3" }
