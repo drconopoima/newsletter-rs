@@ -28,43 +28,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Cache dependencies
-        id: cache-dependencies
-        uses: actions/cache@v4.0.2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1.0.6
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install postgresql CLI tool psql
+        run: sudo apt-get update && sudo apt-get install postgresql-client -y
       - name: Migrate database
         run: |
           SKIP_CONTAINER=true ./scripts/launch_postgres.bash
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1.0.1
-        with:
-          command: test
-
+      - name: Run code tests
+        run: cargo test
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1.0.6
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt
-      - uses: actions-rs/cargo@v1.0.1
-        with:
-          command: fmt
-          args: --all -- --check
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run code formatter tests
+        run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
@@ -81,18 +61,36 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1.0.6
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-          toolchain: stable
-          override: true
       - name: Migrate database
         run: |
           SKIP_CONTAINER=true ./scripts/launch_postgres.bash
-      - name: Run clippy
-        uses: actions-rs/clippy-check@v1.0.7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: -- -D warnings
+      - name: Run code linting tests
+        run: cargo clippy -- -D warnings
+
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install postgresql CLI tool psql
+        run: sudo apt-get update && sudo apt-get install postgresql-client -y
+      - uses: Swatinem/rust-cache@v2
+      - name: Migrate database
+        run: SKIP_CONTAINER=true ./scripts/launch_postgres.bash
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Generate code coverage test report
+        run: cargo tarpaulin --verbose --workspace
