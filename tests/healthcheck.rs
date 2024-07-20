@@ -59,7 +59,7 @@ async fn launch_http_server() -> ServerPostgres {
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
     configuration.database.database = Some(uuid_without_hyphens.to_owned());
     let postgres_pool: Pool = migrate_database(configuration.database).await;
-    let local_addr = "127.0.0.1";
+    let local_addr = "localhost";
     let address: (&str, u16) = (local_addr, 0);
     let listener = TcpListener::bind(address).expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();

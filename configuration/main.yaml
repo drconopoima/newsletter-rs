@@ -1,15 +1,15 @@
 application:
   port: 8000
-  address: "127.0.0.1"
+  address: localhost
   healthcachevalidityms: 1000
 database:
-  host: "127.0.0.1"
+  host: localhost
   port: 5432
-  username: "postgres"
-  password: "password"
-  database: "newsletter"
+  username: postgres
+  password: password
+  database: newsletter
   ssl:
     tls: false
   migration:
     migrate: false
-    folder: "./migrations"
+    folder: ./migrations
