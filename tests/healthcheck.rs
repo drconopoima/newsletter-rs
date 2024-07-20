@@ -9,9 +9,9 @@ use std::net::TcpListener;
 use std::sync::Mutex;
 use std::{
     io::{sink, stdout},
-    time::Duration,
+    time,
 };
-use uuid::Uuid;
+use uuid::{NoContext, Timestamp, Uuid};
 #[macro_use(lazy_static)]
 extern crate lazy_static;
 
@@ -55,7 +55,7 @@ async fn launch_http_server() -> ServerPostgres {
         folder: "./migrations".to_owned(),
     };
     configuration.database.migration = Some(migration_settings);
-    let isolated_database_name = Uuid::new_v4().to_string();
+    let isolated_database_name = Uuid::new_v7(Timestamp::now(NoContext)).to_string();
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
     configuration.database.database = Some(uuid_without_hyphens.to_owned());
     let postgres_pool: Pool = migrate_database(configuration.database).await;
@@ -67,7 +67,7 @@ async fn launch_http_server() -> ServerPostgres {
         listener,
         postgres_pool.clone(),
         None,
-        Some(Duration::from_millis(100000000)),
+        Some(time::Duration::from_millis(100000000)),
     )
     .expect("Failed to listen on address");
     let _ = tokio::spawn(server);

@@ -3,7 +3,7 @@ use deadpool_postgres::{Object, Pool};
 use regex::Regex;
 use std::sync::Arc;
 use tokio_postgres::Statement;
-use uuid::Uuid;
+use uuid::{NoContext, Timestamp, Uuid};
 
 #[derive(serde::Deserialize)]
 pub struct SubscriptionFormData {
@@ -100,7 +100,7 @@ pub async fn run_insert_subscriber_query(
     if statement.is_none() {
         return HttpResponse::InternalServerError().finish();
     }
-    let generated_uuid: Uuid = Uuid::new_v4();
+    let generated_uuid: Uuid = Uuid::new_v7(Timestamp::now(NoContext));
     match postgres_client
         .query(
             &statement.unwrap(),
