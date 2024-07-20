@@ -1139,7 +1139,6 @@ dependencies = [
  "config",
  "deadpool-postgres",
  "futures",
- "lazy_static",
  "md5",
  "native-tls",
  "postgres-native-tls",

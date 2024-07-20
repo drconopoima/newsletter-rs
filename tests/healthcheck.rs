@@ -7,19 +7,15 @@ use newsletter_rs::{
 };
 use std::net::TcpListener;
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::{
     io::{sink, stdout},
     time,
 };
 use uuid::{NoContext, Timestamp, Uuid};
-#[macro_use(lazy_static)]
-extern crate lazy_static;
 
-lazy_static! {
-    static ref TRACING_LAUNCH_LOCK: Mutex<bool> = Mutex::new(true);
-}
-
-static mut TRACING_IS_INITIALIZED: bool = false;
+static TRACING_LAUNCH_LOCK: OnceLock<Mutex<bool>> = OnceLock::new();
+static TRACING_IS_INITIALIZED: OnceLock<bool> = OnceLock::new();
 
 pub struct ServerPostgres {
     pub address: String,
@@ -28,9 +24,9 @@ pub struct ServerPostgres {
 
 // Launch an instance for our HTTP server in the background
 async fn launch_http_server() -> ServerPostgres {
-    let tracing_launch_lock = TRACING_LAUNCH_LOCK.lock().unwrap();
-    let tracing_is_initialized = unsafe { TRACING_IS_INITIALIZED };
-    if !tracing_is_initialized {
+    let tracing_launch_lock = TRACING_LAUNCH_LOCK.get_or_init(|| Mutex::new(true));
+    let tracing_launch_locked = tracing_launch_lock.lock().unwrap();
+    if TRACING_IS_INITIALIZED.get().is_none() {
         let filter_level = "debug".to_owned();
         let subscriber_name = "test".to_owned();
         if std::env::var("TEST_LOG").is_ok() {
@@ -40,9 +36,9 @@ async fn launch_http_server() -> ServerPostgres {
             let subscriber = get_subscriber(subscriber_name, filter_level, sink);
             init_subscriber(subscriber).expect("Failed to initialize subscriber");
         }
-        unsafe { TRACING_IS_INITIALIZED = true };
+        _ = TRACING_IS_INITIALIZED.set(true);
     }
-    std::mem::drop(tracing_launch_lock);
+    std::mem::drop(tracing_launch_locked);
     let config_file: &str = "main.yaml";
     let mut configuration = get_configuration(config_file).unwrap_or_else(|error| {
         panic!(
