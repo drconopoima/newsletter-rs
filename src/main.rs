@@ -5,7 +5,7 @@ use futures::future;
 use newsletter_rs::{
     configuration::{
         get_configuration, CensoredString, DatabaseSettings, MigrationSettings, Settings,
-        SslSettings,
+        SslSettings, CENSOR_STRING,
     },
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
     startup::run,
@@ -58,7 +58,10 @@ async fn main() -> Result<()> {
         port: configuration.database.port,
         host: configuration.database.host.to_owned(),
         username: configuration.database.username.to_owned(),
-        password: configuration.database.password.to_owned(),
+        password: CensoredString {
+            data: configuration.database.password.to_owned(),
+            representation: CENSOR_STRING.to_owned(),
+        },
         database: Some(database_name.to_owned()),
         migration: migration_settings,
         ssl: SslSettings {
