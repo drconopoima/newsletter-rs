@@ -24,8 +24,10 @@ pub struct ServerPostgres {
 
 // Launch an instance for our HTTP server in the background
 async fn launch_http_server() -> ServerPostgres {
-    let tracing_launch_lock = TRACING_LAUNCH_LOCK.get_or_init(|| Mutex::new(true));
-    let tracing_launch_locked = tracing_launch_lock.lock().unwrap();
+    let tracing_launch_locked = TRACING_LAUNCH_LOCK
+        .get_or_init(|| Mutex::new(true))
+        .lock()
+        .unwrap();
     if TRACING_IS_INITIALIZED.get().is_none() {
         let filter_level = "debug".to_owned();
         let subscriber_name = "test".to_owned();
