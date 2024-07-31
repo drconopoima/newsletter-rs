@@ -12,7 +12,7 @@ use std::{
     io::{sink, stdout},
     time,
 };
-use uuid::{NoContext, Timestamp, Uuid};
+use uuid::Uuid;
 
 static TRACING_LAUNCH_LOCK: OnceLock<Mutex<bool>> = OnceLock::new();
 static TRACING_IS_INITIALIZED: OnceLock<bool> = OnceLock::new();
@@ -53,7 +53,7 @@ async fn launch_http_server() -> ServerPostgres {
         folder: "./migrations".to_owned(),
     };
     configuration.database.migration = Some(migration_settings);
-    let isolated_database_name = Uuid::new_v7(Timestamp::now(NoContext)).to_string();
+    let isolated_database_name = Uuid::new_v4().to_string();
     let uuid_without_hyphens = isolated_database_name.replace("-", "");
     configuration.database.database = Some(uuid_without_hyphens.to_owned());
     let postgres_pool: Pool = migrate_database(configuration.database).await;
@@ -152,6 +152,7 @@ async fn subscription_400_incomplete_form_data() {
         ("name=Jane%20Doe", "missing email"),
         ("email=email_nobody_has%40drconopoima.com", "missing name"),
         ("", "missing email and name"),
+        ("email=thisisok%40drconopoima.com&name=ThisNameIsOutrageouslyLongWhatWasThisUserThinkingWeWillSurelyNeedToTrimThisBeforeSendingAnyCorrespondenceThereIsntAnyEmailClientWithAFontSizeSmallEnoughToProcessSuchASingleLineTextVarDisplayingItOnStandardPixelWidthScreensItsBestToReceiveAnErrorOnSubscriptionAttempt", "name too long")
     ];
     let subscriptions_route = &format!("{}/subscription", server_postgres.address);
     for (invalid_body, error_message) in test_cases {
