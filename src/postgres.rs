@@ -100,16 +100,16 @@ pub async fn check_database_exists(
         "SELECT 1 FROM pg_database WHERE datname = '{}'",
         database_name
     );
-    let database_existence_result = &run_simple_query(&postgres_client, &check_database_query)
+    let database_existence_result = run_simple_query(&postgres_client, &check_database_query)
         .await
         .unwrap_or_else(|error| {
             panic!(
                 "Failed to retrieve rows to assert database existence with query \"{}\": {}",
                 check_database_query, error
             )
-        })[0];
-    if let SimpleQueryMessage::CommandComplete(number_rows) = database_existence_result {
-        if *number_rows == 0 {
+        });
+    if let SimpleQueryMessage::CommandComplete(number_rows) = database_existence_result[0] {
+        if number_rows == 0 {
             return (false, postgres_client);
         }
     }

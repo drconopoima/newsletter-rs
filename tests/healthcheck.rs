@@ -1,8 +1,8 @@
 use actix_web::dev::Server;
 use deadpool_postgres::Pool;
 use newsletter_rs::{
-    configuration::{get_configuration, MigrationSettings},
-    postgres::migrate_database,
+    configuration::{get_configuration, CensoredString, MigrationSettings},
+    postgres::{generate_connection_pool, get_client, migrate_database, run_simple_query},
     telemetry::{get_subscriber, init_subscriber},
 };
 use std::net::TcpListener;
@@ -54,8 +54,17 @@ async fn launch_http_server() -> ServerPostgres {
     };
     configuration.database.migration = Some(migration_settings);
     let isolated_database_name = Uuid::new_v4().to_string();
-    let uuid_without_hyphens = isolated_database_name.replace("-", "");
-    configuration.database.database = Some(uuid_without_hyphens.to_owned());
+    let database_name = isolated_database_name.replace("-", "");
+    let postgres_connection_string =
+        CensoredString::new(configuration.database.connection_string_without_database());
+    let pool = generate_connection_pool(postgres_connection_string, false, None).unwrap();
+    let postgres_client = get_client(pool).await.unwrap();
+    let _ = run_simple_query(
+        &postgres_client,
+        &format!("CREATE DATABASE \"{}\"", database_name),
+    )
+    .await;
+    configuration.database.database = Some(database_name.to_owned());
     let postgres_pool: Pool = migrate_database(configuration.database).await;
     let local_addr = "localhost";
     let address: (&str, u16) = (local_addr, 0);
@@ -152,7 +161,6 @@ async fn subscription_400_incomplete_form_data() {
         ("name=Jane%20Doe", "missing email"),
         ("email=email_nobody_has%40drconopoima.com", "missing name"),
         ("", "missing email and name"),
-        ("email=thisisok%40drconopoima.com&name=ThisNameIsOutrageouslyLongWhatWasThisUserThinkingWeWillSurelyNeedToTrimThisBeforeSendingAnyCorrespondenceThereIsntAnyEmailClientWithAFontSizeSmallEnoughToProcessSuchASingleLineTextVarDisplayingItOnStandardPixelWidthScreensItsBestToReceiveAnErrorOnSubscriptionAttempt", "name too long")
     ];
     let subscriptions_route = &format!("{}/subscription", server_postgres.address);
     for (invalid_body, error_message) in test_cases {
@@ -167,6 +175,34 @@ async fn subscription_400_incomplete_form_data() {
         // Assert
         assert_eq!(
             400,
+            response.status().as_u16(),
+            // Custom message for particular test case failure
+            "Expected API failure response code to be 400 Bad Request when body payload was {}.",
+            error_message
+        )
+    }
+}
+
+#[tokio::test]
+async fn subscription_500_invalid_input() {
+    let server_postgres = launch_http_server().await;
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("email=thisisok%40drconopoima.com&name=ThisNameIsOutrageouslyLongWhatWasThisUserThinkingWeWillSurelyNeedToTrimThisBeforeSendingAnyCorrespondenceThereIsntAnyEmailClientWithAFontSizeSmallEnoughToProcessSuchASingleLineTextVarDisplayingItOnStandardPixelWidthScreensItsBestToReceiveAnErrorOnSubscriptionAttempt", "name too long"),
+    ];
+    let subscriptions_route = &format!("{}/subscription", server_postgres.address);
+    for (invalid_body, error_message) in test_cases {
+        // Act
+        let response = client
+            .post(subscriptions_route)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(invalid_body)
+            .send()
+            .await
+            .expect(&format!("Failed POST request to {}", subscriptions_route));
+        // Assert
+        assert_eq!(
+            500,
             response.status().as_u16(),
             // Custom message for particular test case failure
             "Expected API failure response code to be 400 Bad Request when body payload was {}.",

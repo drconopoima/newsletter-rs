@@ -160,14 +160,14 @@ impl DatabaseSettings {
     }
     pub fn connection_string_without_database(&self) -> String {
         format!(
-            "postgresql://{}:{}@{}:{}",
+            "postgresql://{}:{}@{}:{}/",
             self.username, self.password, self.host, self.port
         )
     }
     pub fn connection_string_censored(&self) -> String {
         if self.database.is_none() {
             format!(
-                "postgresql://{}:{}@{}:{}",
+                "postgresql://{}:{}@{}:{}/",
                 self.username, &CENSOR_STRING, self.host, self.port
             )
         } else {
@@ -183,7 +183,7 @@ impl DatabaseSettings {
     }
     pub fn connection_string_without_database_censored(&self) -> String {
         format!(
-            "postgresql://{}:{}@{}:{}",
+            "postgresql://{}:{}@{}:{}/",
             self.username, &CENSOR_STRING, self.host, self.port
         )
     }
