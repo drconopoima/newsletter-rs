@@ -6,7 +6,7 @@
 ├─────────────────────────────────┤
 │ id: uuid (PK)                   │
 │ email: citext                   │
-│ name: text                      │
+│ name: VARCHAR(254)              │
 │ subscription_date: timestamptz  │
 └─────────────────────────────────┘
 ```
