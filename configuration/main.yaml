@@ -12,4 +12,4 @@ database:
     tls: false
   migration:
     migrate: false
-    folder: ./migrations
+    folder: migrations

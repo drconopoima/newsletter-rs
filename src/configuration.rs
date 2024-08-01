@@ -144,7 +144,7 @@ impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
         if self.database.is_none() {
             format!(
-                "postgresql://{}:{}@{}:{}",
+                "postgresql://{}:{}@{}:{}/",
                 self.username, self.password, self.host, self.port
             )
         } else {
