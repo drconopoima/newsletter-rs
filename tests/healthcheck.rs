@@ -55,8 +55,9 @@ async fn launch_http_server() -> ServerPostgres {
     configuration.database.migration = Some(migration_settings);
     let isolated_database_name = Uuid::new_v4().to_string();
     let database_name = isolated_database_name.replace("-", "");
-    let postgres_connection_string =
+    let mut postgres_connection_string =
         CensoredString::new(configuration.database.connection_string_without_database());
+    postgres_connection_string.representation = configuration.database.connection_string_without_database();
     let pool = generate_connection_pool(postgres_connection_string, false, None).unwrap();
     let postgres_client = get_client(pool).await.unwrap();
     let _ = run_simple_query(
