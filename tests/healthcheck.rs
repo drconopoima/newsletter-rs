@@ -48,9 +48,6 @@ async fn launch_http_server() -> ServerPostgres {
             &config_file, error
         )
     });
-    configuration.database.host="localhost".to_owned();
-    configuration.database.port=5432;
-    configuration.database.database=None;
     let migration_settings = MigrationSettings {
         migrate: true,
         folder: "./migrations".to_owned(),
@@ -59,8 +56,8 @@ async fn launch_http_server() -> ServerPostgres {
     let isolated_database_name = Uuid::new_v4().to_string();
     let database_name = isolated_database_name.replace("-", "");
     let mut postgres_connection_string =
-        CensoredString::new(configuration.database.connection_string_without_database());
-    postgres_connection_string.representation = configuration.database.connection_string_without_database();
+        CensoredString::new("postgresql://postgres:password@localhost:5432/".to_owned());
+    postgres_connection_string.representation = "postgresql://postgres:password@localhost:5432/".to_owned();
     let pool = generate_connection_pool(postgres_connection_string, false, None).unwrap();
     let postgres_client = get_client(pool).await.unwrap();
     let _ = run_simple_query(
