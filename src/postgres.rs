@@ -1,4 +1,5 @@
-use crate::configuration::{CensoredString, DatabaseSettings};
+use crate::censoredstring::CensoredString;
+use crate::configuration::DatabaseSettings;
 use actix_web::{body::MessageBody, web::Bytes};
 use anyhow::{Context, Error, Result};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, RecyclingMethod};
@@ -77,10 +78,11 @@ pub async fn check_database_exists(
     database_name: &str,
     database_settings: &DatabaseSettings,
 ) -> (bool, Object) {
-    let connection_string_without_database = CensoredString {
-        data: database_settings.connection_string_without_database(),
-        representation: database_settings.connection_string_without_database_censored(),
-    };
+    let connection_string_without_database = CensoredString::new(
+        &database_settings.connection_string_without_database(),
+        Some(&database_settings.connection_string_without_database_censored()),
+    );
+    database_settings.connection_string_without_database_censored();
     let postgres_pool_without_database: Pool = generate_connection_pool(
         &connection_string_without_database,
         database_settings.ssl.tls,
@@ -128,10 +130,9 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
             .await
             .expect("Failed to create database");
     }
-    let connection_string = CensoredString {
-        data: database_settings.connection_string(),
-        representation: database_settings.connection_string_censored(),
-    };
+    let mut connection_string =
+        CensoredString::from_str(&database_settings.connection_string()).unwrap();
+    connection_string.representation = database_settings.connection_string_censored();
     generate_connection_pool(
         &connection_string,
         database_settings.ssl.tls,

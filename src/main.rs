@@ -3,15 +3,16 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
 use newsletter_rs::{
+    censoredstring::CensoredString,
     configuration::{
-        get_configuration, CensoredString, DatabaseSettings, MigrationSettings, Settings,
-        SslSettings, CENSOR_STRING,
+        get_configuration, DatabaseSettings, MigrationSettings, Settings, SslSettings,
     },
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
     startup::run,
     telemetry,
 };
 use std::net::TcpListener;
+use std::str::FromStr;
 use std::time::Duration;
 
 #[actix_web::main]
@@ -31,10 +32,10 @@ async fn main() -> Result<()> {
             config_file, error
         )
     });
-    let connection_string = CensoredString {
-        data: configuration.database.connection_string(),
-        representation: configuration.database.connection_string_censored(),
-    };
+    let connection_string = CensoredString::new(
+        &configuration.database.connection_string(),
+        Some(&configuration.database.connection_string_censored()),
+    );
     let database_name = match configuration.database.database.as_ref() {
         Some(database_name) => database_name.to_owned(),
         _ => {
@@ -58,10 +59,7 @@ async fn main() -> Result<()> {
         port: configuration.database.port,
         host: configuration.database.host.to_owned(),
         username: configuration.database.username.to_owned(),
-        password: CensoredString {
-            data: configuration.database.password.to_owned(),
-            representation: CENSOR_STRING.to_owned(),
-        },
+        password: CensoredString::from_str(configuration.database.password.as_ref()).unwrap(),
         database: Some(database_name.to_owned()),
         migration: migration_settings,
         ssl: SslSettings {
