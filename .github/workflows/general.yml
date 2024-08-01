@@ -37,7 +37,7 @@ jobs:
         run: |
           SKIP_CONTAINER=true POSTGRES_USER=postgres POSTGRES_PASSWORD=password ./scripts/launch_postgres.bash
       - name: Run code tests
-        run: cargo test
+        run: TEST_LOG=true cargo test
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
