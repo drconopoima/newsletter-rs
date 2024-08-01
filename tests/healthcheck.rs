@@ -48,6 +48,9 @@ async fn launch_http_server() -> ServerPostgres {
             &config_file, error
         )
     });
+    configuration.database.host="localhost".to_owned();
+    configuration.database.port=5432;
+    configuration.database.database=None;
     let migration_settings = MigrationSettings {
         migrate: true,
         folder: "./migrations".to_owned(),
