@@ -6,7 +6,7 @@ use serde_aux::field_attributes::{
 };
 use std::convert::AsRef;
 use std::fmt;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::str::FromStr;
 use tracing::info;
 
@@ -39,12 +39,6 @@ impl Deref for CensoredString {
     type Target = String;
     fn deref(&self) -> &String {
         &self.data
-    }
-}
-// Deref coercion for DerefMut to emulate inheritance. Read https://doc.rust-lang.org/std/ops/trait.DerefMut.html
-impl DerefMut for CensoredString {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
     }
 }
 
