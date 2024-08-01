@@ -4,6 +4,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use serde_aux::field_attributes::{
     deserialize_number_from_string, deserialize_option_number_from_string,
 };
+use std::convert::AsRef;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
@@ -27,6 +28,12 @@ impl CensoredString {
     }
 }
 
+impl AsRef<str> for CensoredString {
+    fn as_ref(&self) -> &str {
+        &self.data
+    }
+}
+
 // Antipattern Deref polymorphism to emulate inheritance. Read https://github.com/rust-unofficial/patterns/blob/main/anti_patterns/deref.md
 impl Deref for CensoredString {
     type Target = String;
@@ -46,7 +53,7 @@ impl Serialize for CensoredString {
     where
         S: ser::Serializer,
     {
-        self.data.serialize(serializer)
+        self.as_ref().serialize(serializer)
     }
 }
 

@@ -41,12 +41,12 @@ pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector
 
 #[tracing::instrument(name = "Generating database connection pool.")]
 pub fn generate_connection_pool(
-    postgres_connection_string: CensoredString,
+    postgres_connection_string: &CensoredString,
     tls: bool,
     cacertificates: Option<&String>,
 ) -> Result<Pool, Error> {
     let postgres_configuration =
-        tokio_postgres::Config::from_str(&postgres_connection_string).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string '{}'", env!("CARGO_PKG_NAME"), &postgres_connection_string)})?;
+        tokio_postgres::Config::from_str(postgres_connection_string).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string '{}'", env!("CARGO_PKG_NAME"), &postgres_connection_string)})?;
     let deadpool_manager_config = ManagerConfig {
         recycling_method: RecyclingMethod::Verified,
     };
@@ -82,7 +82,7 @@ pub async fn check_database_exists(
         representation: database_settings.connection_string_without_database_censored(),
     };
     let postgres_pool_without_database: Pool = generate_connection_pool(
-        connection_string_without_database,
+        &connection_string_without_database,
         database_settings.ssl.tls,
         database_settings.ssl.cacertificates.as_ref(),
     )
@@ -133,7 +133,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
         representation: database_settings.connection_string_censored(),
     };
     generate_connection_pool(
-        connection_string,
+        &connection_string,
         database_settings.ssl.tls,
         database_settings.ssl.cacertificates.as_ref(),
     )

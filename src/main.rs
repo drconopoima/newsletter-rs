@@ -75,14 +75,14 @@ async fn main() -> Result<()> {
                 migrate_database(database_settings).await
             } else {
                 generate_connection_pool(
-                    connection_string,
+                    &connection_string,
                     database_settings.ssl.tls,
                     database_settings.ssl.cacertificates.as_ref(),
                 )?
             }
         }
         _ => generate_connection_pool(
-            connection_string,
+            &connection_string,
             database_settings.ssl.tls,
             database_settings.ssl.cacertificates.as_ref(),
         )?,
