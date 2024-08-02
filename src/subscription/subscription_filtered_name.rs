@@ -14,7 +14,7 @@ impl SubscriptionFilteredName {
         let trimmed_name = name.trim();
         let is_empty_or_whitespace = trimmed_name.is_empty();
         if is_empty_or_whitespace {
-            panic!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name)
+            return Err(format!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name))
         }
         let intermediate_whitespace = Regex::new(r"^\s+|\s+$|\s+").unwrap();
         let name_middle_trim = intermediate_whitespace.replace_all(trimmed_name, " ").into_owned();
@@ -23,7 +23,7 @@ impl SubscriptionFilteredName {
         let contains_forbidden_chars = name_middle_trim.chars().any(|g| forbidden_chars.contains(&g));
         
         if contains_forbidden_chars {
-            panic!("Provided name '{}' contains one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", name_middle_trim)
+            return Err(format!("Provided name '{}' contains one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", name_middle_trim))
         }
 
         let is_too_long = name_middle_trim.len() > 254;
@@ -31,11 +31,10 @@ impl SubscriptionFilteredName {
         if !is_too_long {
             Ok(Self(name_middle_trim))
         } else {
-            panic!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim)
+            Err(format!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim))
         }
     }
 }
-
 
 impl AsRef<str> for SubscriptionFilteredName {
     fn as_ref(&self) -> &str {
@@ -58,7 +57,7 @@ impl fmt::Display for SubscriptionFilteredName {
     }
 }
 
-/* #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use crate::subscription::SubscriptionFilteredName;
     use std::str::FromStr;
@@ -74,4 +73,4 @@ mod tests {
         let name = "y".repeat(254);
         assert_ok!(SubscriptionFilteredName::from_str(&name));
     }
-} */
+}

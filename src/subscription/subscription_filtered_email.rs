@@ -14,11 +14,11 @@ impl SubscriptionFilteredEmail {
         let lowercase_email = email.to_lowercase().trim().to_owned();
         let is_empty_or_whitespace = lowercase_email.is_empty();
         if is_empty_or_whitespace {
-            panic!("Provided email '{}' appears to be blank or empty which is invalid.", email)
+            return Err(format!("Provided email '{}' appears to be blank or empty which is invalid.", email))
         }
         let contains_intermediate_whitespace = Regex::new(r"^\s+|\s+$|\s+").unwrap();
         if contains_intermediate_whitespace.is_match(&lowercase_email) {
-            panic!("Provided email '{}' appears to contain intermediate whitespace which is invalid.", email)
+            return Err(format!("Provided email '{}' appears to contain intermediate whitespace which is invalid.", email))
         }
         // MDN web docs provide a regular expression matching emails
         // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#validation
@@ -26,7 +26,7 @@ impl SubscriptionFilteredEmail {
         if email_format.is_match(&lowercase_email) {
             Ok(Self(lowercase_email.to_owned()))
         } else {
-            panic!("Provided email '{}' has invalid formatting.", email)
+            Err(format!("Provided email '{}' has invalid formatting.", email))
         }
     }
 }
