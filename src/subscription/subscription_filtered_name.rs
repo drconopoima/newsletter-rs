@@ -110,7 +110,7 @@ mod tests {
         );
         for input in tests {
             assert_ok!(
-                SubscriptionFilteredName::new(&input)
+                SubscriptionFilteredName::from_str(&input)
             );
         }
     }
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn rejects_forbidden_characters() {
         let tests = vec!(
-            "<MyNameIsARustType>\n",
+            "<MyNameIsARustTypeAnnotation>\n",
             "MyName?ReturnsResultAutomatically//ButErrorVariant",
             "Rust[1]ndexLik{3}TheFirst(0)ne"
         );
@@ -191,6 +191,19 @@ mod tests {
                 SubscriptionFilteredName::from_str(&input)
             );
         };
+    }
+
+    #[test]
+    fn accepts_longer_than_254_chars_by_trimming(){
+        let name = "  \ty\n".repeat(127); // Intermediate trimming 1 space after each "y" brings it to 253
+        assert_ok!(SubscriptionFilteredName::parse(&name));
+    }
+
+
+    #[test]
+    fn rejects_longer_than_254_chars_after_trimming(){
+        let name = "  \tn\n".repeat(128); // Intermediate trimming 1 space after each "y" brings it to 255
+        assert_err!(SubscriptionFilteredName::from_str(&name));
     }
 
     #[test]
