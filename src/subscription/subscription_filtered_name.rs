@@ -17,27 +17,34 @@ impl SubscriptionFilteredName {
         if is_empty_or_whitespace {
             return Err(format!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name));
         }
+
+        let forbidden_chars = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
+        let contains_forbidden_chars = trimmed_name
+            .chars()
+            .any(|g| forbidden_chars.contains(&g));
+
+        if contains_forbidden_chars {
+            return Err(format!("Provided name '{}' must not contain one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", trimmed_name));
+        }
+
         let intermediate_whitespace = Regex::new(r"^\s+|\s+$|\s+").unwrap();
         let name_middle_trim = intermediate_whitespace
             .replace_all(trimmed_name, " ")
             .into_owned();
 
-        let forbidden_chars = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
-        let contains_forbidden_chars = name_middle_trim
-            .chars()
-            .any(|g| forbidden_chars.contains(&g));
-
-        if contains_forbidden_chars {
-            return Err(format!("Provided name '{}' contains one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", name_middle_trim));
-        }
-
         let is_too_long = name_middle_trim.len() > 254;
 
-        if !is_too_long {
-            Ok(Self(name_middle_trim))
-        } else {
-            Err(format!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim))
+        if is_too_long {
+            return Err(format!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim))
         }
+        // Certain symbols appear in names as long as you don't closely repeat them next to themselves
+        // Each character in separate group due to library not supporting backreferences, nor look-behinds
+        let repeat_special_chars = Regex::new(r"(([']){2,}|([,]){2,}|([;]){2,}|([.]){2,}|([:]){2,}|([*]){2,}|([+]){2,}|([\\]){2,}|([-]){2,}|([&]){2,}|([%]){2,}|([¨]){2,}|([`]){2,}|([´]){2,}|([~]){2,}|([#]){2,}|([\^]){2,}|([%]){2,}|([@]){2,}|([?]){2,}|([¿]){2,}|([|]){2,}|([!]){2,}|([¡]){2,}|([=]){2,}|([+]){2,})+?").unwrap();
+        let contains_repeat_special_chars = repeat_special_chars.is_match(&name_middle_trim);
+        if contains_repeat_special_chars {
+            return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", &name_middle_trim))
+        }
+        Ok(Self(name_middle_trim.to_owned()))
     }
 }
 
@@ -82,10 +89,11 @@ mod tests {
         let name = "n".repeat(255);
         assert_err!(SubscriptionFilteredName::new(&name));
     }
+
     #[test]
     fn accepts_254_characters_input() {
         let name = "y".repeat(254);
-        assert_ok!(SubscriptionFilteredName::from_str(&name));
+        assert_ok!(SubscriptionFilteredName::parse(&name));
     }
 
     #[test]
@@ -108,6 +116,41 @@ mod tests {
     }
 
     #[test]
+    fn accepts_special_characters() {
+        let tests = vec!(
+            "O'Yeah",
+            "Graham-Cumming ",
+            "X Æ A-12 Musk",
+            "Nsĩã́",
+            "Horáčková",
+            "Rômulo",
+            "Yaʻªqōḇ",
+            "Dr. Conopoima",
+            "Gordon Freeman, MSc;MBA;PhD,PMP®"
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredName::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn rejects_repeated_special_characters() {
+        let tests = vec!(
+            "O''Nah",
+            "Column--Delimiter",
+            "Likely++AnError",
+            "Missing titles, MSc;;PhD,®"
+        );
+        for input in tests {
+            assert_err!(
+                SubscriptionFilteredName::from_str(&input)
+            );
+        };
+    }
+
+    #[test]
     fn accepts_input_needing_trimming() {
         let tests = vec!(
             "We are anonymous!\n",
@@ -122,6 +165,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_forbidden_characters() {
+        let tests = vec!(
+            "<MyNameIsARustType>\n",
+            "MyName?ReturnsResultAutomatically//ButErrorVariant",
+            "Rust[1]ndexLik{3}TheFirst(0)ne"
+        );
+        for input in tests {
+            assert_err!(
+                SubscriptionFilteredName::parse(&input)
+            );
+        }
+    }
+
+    #[test]
     fn accepts_intermediate_whitespace(){
         let tests = vec!(
             "Jose   Felix \t \n \
@@ -131,7 +188,7 @@ mod tests {
         );
         for input in tests {
             assert_ok!(
-                SubscriptionFilteredName::new(&input)
+                SubscriptionFilteredName::from_str(&input)
             );
         };
     }
@@ -156,7 +213,6 @@ mod tests {
                 SubscriptionFilteredName::parse(&input)
             }
         }).collect();
-        println!("{:?}",&results);
         for result in results {
             assert_err!(result);
         }

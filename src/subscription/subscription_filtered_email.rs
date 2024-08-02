@@ -30,14 +30,13 @@ impl SubscriptionFilteredEmail {
         // MDN web docs provide a regular expression matching emails
         // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#validation
         let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
-        if email_format.is_match(&lowercase_email) {
-            Ok(Self(lowercase_email.to_owned()))
-        } else {
-            Err(format!(
+        if !email_format.is_match(&lowercase_email) {
+            return Err(format!(
                 "Provided email '{}' has invalid formatting.",
                 email
             ))
         }
+        Ok(Self(lowercase_email.to_owned()))
     }
 }
 
@@ -101,7 +100,7 @@ mod tests {
         );
         for input in tests {
             assert_ok!(
-                SubscriptionFilteredEmail::new(&input)
+                SubscriptionFilteredEmail::parse(&input)
             );
         };
     }
@@ -153,7 +152,7 @@ mod tests {
         );
         for input in tests {
             assert_err!(
-                SubscriptionFilteredEmail::new(&input)
+                SubscriptionFilteredEmail::from_str(&input)
             );
         };
     }
@@ -169,7 +168,6 @@ mod tests {
         long_sub_domain_label.extend("x".repeat(63).chars());
         long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("z".repeat(63).chars());
-        // println!("{}",long_sub_domain_label);
         let long_sub_domain = format!("{}.net", long_sub_domain_label);
         let tests = vec!(
             long_tld,
@@ -178,7 +176,7 @@ mod tests {
         );
         for input in tests {
             assert_ok!(
-                SubscriptionFilteredEmail::new(&input)
+                SubscriptionFilteredEmail::from_str(&input)
             );
         };
     }
@@ -197,7 +195,6 @@ mod tests {
         long_sub_domain_label.extend("y".repeat(64).chars());
         long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("z".repeat(63).chars());
-        // println!("{}",long_sub_domain_label);
         let long_sub_domain = format!("{}.net", long_sub_domain_label);
         let tests = vec!(
             long_tld,
@@ -206,7 +203,7 @@ mod tests {
         );
         for input in tests {
             assert_err!(
-                SubscriptionFilteredEmail::new(&input)
+                SubscriptionFilteredEmail::parse(&input)
             );
         };
     }
@@ -259,7 +256,6 @@ mod tests {
                     SubscriptionFilteredEmail::parse(&input)
                 }
             };
-            println!("{:?}",&result);
             if expected {
                 assert_ok!(
                     result
