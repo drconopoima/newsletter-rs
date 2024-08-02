@@ -125,7 +125,6 @@ mod tests {
                 SubscriptionFilteredEmail::parse(&input)
             }
         }).collect();
-        println!("{:?}",&results);
         for result in results {
             assert_err!(result);
         }
