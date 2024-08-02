@@ -16,7 +16,7 @@ use std::{
 use uuid::Uuid;
 
 static TRACING_LAUNCH_LOCK: OnceLock<Mutex<bool>> = OnceLock::new();
-static TRACING_IS_INITIALIZED: OnceLock<bool> = OnceLock::new();
+static TRACING_IS_INITIALIZED: OnceLock<bool> = OnceLock::new();                
 
 pub struct ServerPostgres {
     pub address: String,
