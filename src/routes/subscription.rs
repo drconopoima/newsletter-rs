@@ -1,6 +1,7 @@
-use crate::subscription::SubscriptionFormData;
+use crate::subscription::{FormData, SubscriptionFormData};
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use deadpool_postgres::{Object, Pool};
+use std::convert::TryFrom;
 use std::sync::Arc;
 use tokio_postgres::Statement;
 use uuid::{NoContext, Timestamp, Uuid};
@@ -13,10 +14,14 @@ use uuid::{NoContext, Timestamp, Uuid};
         subscription_name = %form.name
     )
 )]
-pub async fn subscription(
-    request: HttpRequest,
-    form: web::Form<SubscriptionFormData>,
-) -> impl Responder {
+pub async fn subscription(request: HttpRequest, form: web::Form<FormData>) -> impl Responder {
+    let subscription_form: SubscriptionFormData = match SubscriptionFormData::try_from(form.0) {
+        Ok(form_data) => form_data,
+        Err(error) => {
+            tracing::error!("routes/subscription.rs {}", error);
+            return HttpResponse::BadRequest().body(error);
+        }
+    };
     let optional_postgres_pool: Option<&Arc<Pool>> = match request.app_data::<Arc<Pool>>() {
         Some(postgres_pool) => Some(postgres_pool),
         None => {
@@ -35,7 +40,7 @@ pub async fn subscription(
             .body("DB client error while processing subscription.");
     }
     let postgres_client = optional_postgres_client.unwrap();
-    run_insert_subscriber_query(postgres_client, form).await
+    run_insert_subscriber_query(postgres_client, subscription_form).await
 }
 
 #[tracing::instrument(name = "Retrieving database client from pool.", skip(postgres_pool))]
@@ -80,7 +85,7 @@ pub async fn prepare_cached_statement(postgres_client: &Object) -> Option<Statem
 )]
 pub async fn run_insert_subscriber_query(
     postgres_client: Object,
-    form: web::Form<SubscriptionFormData>,
+    form: SubscriptionFormData,
 ) -> HttpResponse {
     let statement = prepare_cached_statement(&postgres_client).await;
     if statement.is_none() {

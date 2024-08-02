@@ -1,9 +1,10 @@
-use std::convert::AsRef;
-use std::str::FromStr;
 use regex::Regex;
+use std::convert::AsRef;
 use std::fmt;
+use std::ops::Deref;
+use std::str::FromStr;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug)]
 pub struct SubscriptionFilteredName(String);
 
 impl SubscriptionFilteredName {
@@ -14,16 +15,20 @@ impl SubscriptionFilteredName {
         let trimmed_name = name.trim();
         let is_empty_or_whitespace = trimmed_name.is_empty();
         if is_empty_or_whitespace {
-            return Err(format!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name))
+            return Err(format!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name));
         }
         let intermediate_whitespace = Regex::new(r"^\s+|\s+$|\s+").unwrap();
-        let name_middle_trim = intermediate_whitespace.replace_all(trimmed_name, " ").into_owned();
-        
+        let name_middle_trim = intermediate_whitespace
+            .replace_all(trimmed_name, " ")
+            .into_owned();
+
         let forbidden_chars = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
-        let contains_forbidden_chars = name_middle_trim.chars().any(|g| forbidden_chars.contains(&g));
-        
+        let contains_forbidden_chars = name_middle_trim
+            .chars()
+            .any(|g| forbidden_chars.contains(&g));
+
         if contains_forbidden_chars {
-            return Err(format!("Provided name '{}' contains one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", name_middle_trim))
+            return Err(format!("Provided name '{}' contains one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", name_middle_trim));
         }
 
         let is_too_long = name_middle_trim.len() > 254;
@@ -42,10 +47,18 @@ impl AsRef<str> for SubscriptionFilteredName {
     }
 }
 
+// Antipattern Deref polymorphism to emulate inheritance. Read https://github.com/rust-unofficial/patterns/blob/main/anti_patterns/deref.md
+impl Deref for SubscriptionFilteredName {
+    type Target = String;
+    fn deref(&self) -> &String {
+        &self.0
+    }
+}
+
 impl FromStr for SubscriptionFilteredName {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<Self,Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::new(s)
     }
 }
@@ -60,8 +73,8 @@ impl fmt::Display for SubscriptionFilteredName {
 #[cfg(test)]
 mod tests {
     use crate::subscription::SubscriptionFilteredName;
-    use std::str::FromStr;
     use claims::{assert_err, assert_ok};
+    use std::str::FromStr;
 
     #[test]
     fn name_rejects_255_characters_input() {
