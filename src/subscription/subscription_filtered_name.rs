@@ -89,6 +89,54 @@ mod tests {
     }
 
     #[test]
+    // At least while it isn't mandated otherwise
+    fn accepts_cancelled_celebrities() {
+        let tests = vec!(
+            "J. K. Rowling",
+            "Matt Damon",
+            "Jimmy Donaldson",
+            "Ye West",
+            "Logan Paul",
+            "boogie2988",
+            "SSSniperWolf"
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredName::new(&input)
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_input_needing_trimming() {
+        let tests = vec!(
+            "We are anonymous!\n",
+            "\n \tWe know exactly who they are \t",
+            "\nRyan Sees Through Copper\t \n"
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredName::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn accepts_intermediate_whitespace(){
+        let tests = vec!(
+            "Jose   Felix \t \n \
+                Ribas",
+            "This \t    \n keyboard\t \
+            jumps \t \t\n    around   a lot"
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredName::new(&input)
+            );
+        };
+    }
+
+    #[test]
     fn rejects_empty_blank_whitespace() {
         let tests = vec!(
             "",
