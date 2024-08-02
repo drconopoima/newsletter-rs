@@ -1158,6 +1158,7 @@ dependencies = [
  "md5",
  "native-tls",
  "postgres-native-tls",
+ "rand",
  "regex",
  "reqwest",
  "serde",

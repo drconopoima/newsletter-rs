@@ -75,15 +75,42 @@ mod tests {
     use crate::subscription::SubscriptionFilteredName;
     use claims::{assert_err, assert_ok};
     use std::str::FromStr;
+    use rand::{prelude::*,distributions::WeightedIndex};
 
     #[test]
-    fn name_rejects_255_characters_input() {
+    fn rejects_255_characters_input() {
         let name = "n".repeat(255);
         assert_err!(SubscriptionFilteredName::new(&name));
     }
     #[test]
-    fn name_accepts_254_characters_input() {
+    fn accepts_254_characters_input() {
         let name = "y".repeat(254);
         assert_ok!(SubscriptionFilteredName::from_str(&name));
+    }
+
+    #[test]
+    fn rejects_empty_blank_whitespace() {
+        let tests = vec!(
+            "",
+            " \t",
+            "\n\t \n"
+        );
+        let mut rng = thread_rng();
+        let methods_weights = [("new", 1), ("parse", 1), ("from_str", 1)];
+        let sampling_methods = WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
+        let results: Vec<Result<SubscriptionFilteredName, String>> = tests.into_iter().map(|input| {
+            let method = methods_weights[sampling_methods.sample(&mut rng)].0;
+            if method.eq("new") {
+                SubscriptionFilteredName::new(&input)
+            } else if method.eq("from_str") {
+                SubscriptionFilteredName::from_str(&input)
+            } else {
+                SubscriptionFilteredName::parse(&input)
+            }
+        }).collect();
+        println!("{:?}",&results);
+        for result in results {
+            assert_err!(result);
+        }
     }
 }
