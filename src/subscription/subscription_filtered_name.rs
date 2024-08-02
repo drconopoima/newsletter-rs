@@ -19,9 +19,7 @@ impl SubscriptionFilteredName {
         }
 
         let forbidden_chars = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
-        let contains_forbidden_chars = trimmed_name
-            .chars()
-            .any(|g| forbidden_chars.contains(&g));
+        let contains_forbidden_chars = trimmed_name.chars().any(|g| forbidden_chars.contains(&g));
 
         if contains_forbidden_chars {
             return Err(format!("Provided name '{}' must not contain one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", trimmed_name));
@@ -35,14 +33,14 @@ impl SubscriptionFilteredName {
         let is_too_long = name_middle_trim.len() > 254;
 
         if is_too_long {
-            return Err(format!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim))
+            return Err(format!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim));
         }
         // Certain symbols appear in names as long as you don't closely repeat them next to themselves
         // Each character in separate group due to library not supporting backreferences, nor look-behinds
         let repeat_special_chars = Regex::new(r"(([']){2,}|([,]){2,}|([;]){2,}|([.]){2,}|([:]){2,}|([*]){2,}|([+]){2,}|([\\]){2,}|([-]){2,}|([&]){2,}|([%]){2,}|([¨]){2,}|([`]){2,}|([´]){2,}|([~]){2,}|([#]){2,}|([\^]){2,}|([%]){2,}|([@]){2,}|([?]){2,}|([¿]){2,}|([|]){2,}|([!]){2,}|([¡]){2,}|([=]){2,}|([+]){2,})+?").unwrap();
         let contains_repeat_special_chars = repeat_special_chars.is_match(&name_middle_trim);
         if contains_repeat_special_chars {
-            return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", &name_middle_trim))
+            return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", &name_middle_trim));
         }
         Ok(Self(name_middle_trim.to_owned()))
     }
@@ -81,8 +79,8 @@ impl fmt::Display for SubscriptionFilteredName {
 mod tests {
     use crate::subscription::SubscriptionFilteredName;
     use claims::{assert_err, assert_ok};
+    use rand::{distributions::WeightedIndex, prelude::*};
     use std::str::FromStr;
-    use rand::{prelude::*,distributions::WeightedIndex};
 
     #[test]
     fn rejects_255_characters_input() {
@@ -99,25 +97,23 @@ mod tests {
     #[test]
     // At least while it isn't mandated otherwise
     fn accepts_cancelled_celebrities() {
-        let tests = vec!(
+        let tests = vec![
             "J. K. Rowling",
             "Matt Damon",
             "Jimmy Donaldson",
             "Ye West",
             "Logan Paul",
             "boogie2988",
-            "SSSniperWolf"
-        );
+            "SSSniperWolf",
+        ];
         for input in tests {
-            assert_ok!(
-                SubscriptionFilteredName::from_str(&input)
-            );
+            assert_ok!(SubscriptionFilteredName::from_str(&input));
         }
     }
 
     #[test]
     fn accepts_special_characters() {
-        let tests = vec!(
+        let tests = vec![
             "O'Yeah",
             "Graham-Cumming ",
             "X Æ A-12 Musk",
@@ -126,106 +122,95 @@ mod tests {
             "Rômulo",
             "Yaʻªqōḇ",
             "Dr. Conopoima",
-            "Gordon Freeman, MSc;MBA;PhD,PMP®"
-        );
+            "Gordon Freeman, MSc;MBA;PhD,PMP®",
+        ];
         for input in tests {
-            assert_ok!(
-                SubscriptionFilteredName::new(&input)
-            );
-        };
-    }
-
-    #[test]
-    fn rejects_repeated_special_characters() {
-        let tests = vec!(
-            "O''Nah",
-            "Column--Delimiter",
-            "Likely++AnError",
-            "Missing titles, MSc;;PhD,®"
-        );
-        for input in tests {
-            assert_err!(
-                SubscriptionFilteredName::from_str(&input)
-            );
-        };
-    }
-
-    #[test]
-    fn accepts_input_needing_trimming() {
-        let tests = vec!(
-            "We are anonymous!\n",
-            "\n \tWe know exactly who they are \t",
-            "\nRyan Sees Through Copper\t \n"
-        );
-        for input in tests {
-            assert_ok!(
-                SubscriptionFilteredName::new(&input)
-            );
-        };
-    }
-
-    #[test]
-    fn rejects_forbidden_characters() {
-        let tests = vec!(
-            "<MyNameIsARustTypeAnnotation>\n",
-            "MyName?ReturnsResultAutomatically//ButErrorVariant",
-            "Rust[1]ndexLik{3}TheFirst(0)ne"
-        );
-        for input in tests {
-            assert_err!(
-                SubscriptionFilteredName::parse(&input)
-            );
+            assert_ok!(SubscriptionFilteredName::new(&input));
         }
     }
 
     #[test]
-    fn accepts_intermediate_whitespace(){
-        let tests = vec!(
-            "Jose   Felix \t \n \
-                Ribas",
-            "This \t    \n keyboard\t \
-            jumps \t \t\n    around   a lot"
-        );
+    fn rejects_repeated_special_characters() {
+        let tests = vec![
+            "O''Nah",
+            "Column--Delimiter",
+            "Likely++AnError",
+            "Missing titles, MSc;;PhD,®",
+        ];
         for input in tests {
-            assert_ok!(
-                SubscriptionFilteredName::from_str(&input)
-            );
-        };
+            assert_err!(SubscriptionFilteredName::from_str(&input));
+        }
     }
 
     #[test]
-    fn accepts_longer_than_254_chars_by_trimming(){
+    fn accepts_input_needing_trimming() {
+        let tests = vec![
+            "We are anonymous!\n",
+            "\n \tWe know exactly who they are \t",
+            "\nRyan Sees Through Copper\t \n",
+        ];
+        for input in tests {
+            assert_ok!(SubscriptionFilteredName::new(&input));
+        }
+    }
+
+    #[test]
+    fn rejects_forbidden_characters() {
+        let tests = vec![
+            "<MyNameIsARustTypeAnnotation>\n",
+            "MyName?ReturnsResultAutomatically//ButErrorVariant",
+            "Rust[1]ndexLik{3}TheFirst(0)ne",
+        ];
+        for input in tests {
+            assert_err!(SubscriptionFilteredName::parse(&input));
+        }
+    }
+
+    #[test]
+    fn accepts_intermediate_whitespace() {
+        let tests = vec![
+            "Jose   Felix \t \n \
+                Ribas",
+            "This \t    \n keyboard\t \
+            jumps \t \t\n    around   a lot",
+        ];
+        for input in tests {
+            assert_ok!(SubscriptionFilteredName::from_str(&input));
+        }
+    }
+
+    #[test]
+    fn accepts_longer_than_254_chars_by_trimming() {
         let name = "  \ty\n".repeat(127); // Intermediate trimming 1 space after each "y" brings it to 253
         assert_ok!(SubscriptionFilteredName::parse(&name));
     }
 
-
     #[test]
-    fn rejects_longer_than_254_chars_after_trimming(){
+    fn rejects_longer_than_254_chars_after_trimming() {
         let name = "  \tn\n".repeat(128); // Intermediate trimming 1 space after each "y" brings it to 255
         assert_err!(SubscriptionFilteredName::from_str(&name));
     }
 
     #[test]
     fn rejects_empty_blank_whitespace() {
-        let tests = vec!(
-            "",
-            " \t",
-            "\n\t \n"
-        );
+        let tests = vec!["", " \t", "\n\t \n"];
         let mut rng = thread_rng();
         let methods_weights = [("new", 1), ("parse", 1), ("from_str", 1)];
-        let sampling_methods = WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
-        let results: Vec<Result<SubscriptionFilteredName, String>> = tests.into_iter().map(|input| {
-            let method = methods_weights[sampling_methods.sample(&mut rng)].0;
-            if method.eq("new") {
-                SubscriptionFilteredName::new(&input)
-            } else if method.eq("from_str") {
-                SubscriptionFilteredName::from_str(&input)
-            } else {
-                SubscriptionFilteredName::parse(&input)
-            }
-        }).collect();
+        let sampling_methods =
+            WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
+        let results: Vec<Result<SubscriptionFilteredName, String>> = tests
+            .into_iter()
+            .map(|input| {
+                let method = methods_weights[sampling_methods.sample(&mut rng)].0;
+                if method.eq("new") {
+                    SubscriptionFilteredName::new(&input)
+                } else if method.eq("from_str") {
+                    SubscriptionFilteredName::from_str(&input)
+                } else {
+                    SubscriptionFilteredName::parse(&input)
+                }
+            })
+            .collect();
         for result in results {
             assert_err!(result);
         }

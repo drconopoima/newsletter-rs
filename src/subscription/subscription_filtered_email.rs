@@ -34,7 +34,7 @@ impl SubscriptionFilteredEmail {
             return Err(format!(
                 "Provided email '{}' has invalid formatting.",
                 email
-            ))
+            ));
         }
         Ok(Self(lowercase_email.to_owned()))
     }
@@ -73,87 +73,73 @@ impl FromStr for SubscriptionFilteredEmail {
 mod tests {
     use crate::subscription::SubscriptionFilteredEmail;
     use claims::{assert_err, assert_ok};
+    use rand::{distributions::WeightedIndex, prelude::*};
     use std::str::FromStr;
-    use rand::{prelude::*,distributions::WeightedIndex};
 
     #[test]
     fn accepts_standard_looking_cases() {
-        let tests = vec!(
+        let tests = vec![
             "email@drconopoima.com",
             "hyphenated-email@here.and.there.com",
             "email@127.0.0.1",
-            "email@localhost"
-        );
+            "email@localhost",
+        ];
         for input in tests {
-            assert_ok!(
-                SubscriptionFilteredEmail::new(&input)
-            );
+            assert_ok!(SubscriptionFilteredEmail::new(&input));
         }
     }
 
     #[test]
     fn accepts_input_needing_trimming() {
-        let tests = vec!(
+        let tests = vec![
             "address@host.local\n",
             " \tthisgotin@byaccidentaltypi.ng",
-            "\nsomescript@unintended.input\t \n"
-        );
+            "\nsomescript@unintended.input\t \n",
+        ];
         for input in tests {
-            assert_ok!(
-                SubscriptionFilteredEmail::parse(&input)
-            );
-        };
+            assert_ok!(SubscriptionFilteredEmail::parse(&input));
+        }
     }
 
     #[test]
     fn rejects_empty_blank_whitespace() {
-        let tests = vec!(
-            "",
-            " \t",
-            "\n\t \n"
-        );
+        let tests = vec!["", " \t", "\n\t \n"];
         let mut rng = thread_rng();
         let methods_weights = [("new", 1), ("parse", 1), ("from_str", 1)];
-        let sampling_methods = WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
-        let results: Vec<Result<SubscriptionFilteredEmail, String>> = tests.into_iter().map(|input| {
-            let method = methods_weights[sampling_methods.sample(&mut rng)].0;
-            if method.eq("new") {
-                SubscriptionFilteredEmail::new(&input)
-            } else if method.eq("from_str") {
-                SubscriptionFilteredEmail::from_str(&input)
-            } else {
-                SubscriptionFilteredEmail::parse(&input)
-            }
-        }).collect();
+        let sampling_methods =
+            WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
+        let results: Vec<Result<SubscriptionFilteredEmail, String>> = tests
+            .into_iter()
+            .map(|input| {
+                let method = methods_weights[sampling_methods.sample(&mut rng)].0;
+                if method.eq("new") {
+                    SubscriptionFilteredEmail::new(&input)
+                } else if method.eq("from_str") {
+                    SubscriptionFilteredEmail::from_str(&input)
+                } else {
+                    SubscriptionFilteredEmail::parse(&input)
+                }
+            })
+            .collect();
         for result in results {
             assert_err!(result);
         }
     }
 
     #[test]
-    fn rejects_missing_tld(){
-        let tests = vec!(
-            "abc",
-            "abc@",
-        );
+    fn rejects_missing_tld() {
+        let tests = vec!["abc", "abc@"];
         for input in tests {
-            assert_err!(
-                SubscriptionFilteredEmail::new(&input)
-            );
-        };
+            assert_err!(SubscriptionFilteredEmail::new(&input));
+        }
     }
 
     #[test]
-    fn rejects_intermediate_whitespace(){
-        let tests = vec!(
-            "a @x.yz",
-            "a\n@b.net"
-        );
+    fn rejects_intermediate_whitespace() {
+        let tests = vec!["a @x.yz", "a\n@b.net"];
         for input in tests {
-            assert_err!(
-                SubscriptionFilteredEmail::from_str(&input)
-            );
-        };
+            assert_err!(SubscriptionFilteredEmail::from_str(&input));
+        }
     }
 
     #[test]
@@ -168,18 +154,11 @@ mod tests {
         long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("z".repeat(63).chars());
         let long_sub_domain = format!("{}.net", long_sub_domain_label);
-        let tests = vec!(
-            long_tld,
-            long_domain,
-            long_sub_domain
-        );
+        let tests = vec![long_tld, long_domain, long_sub_domain];
         for input in tests {
-            assert_ok!(
-                SubscriptionFilteredEmail::from_str(&input)
-            );
-        };
+            assert_ok!(SubscriptionFilteredEmail::from_str(&input));
+        }
     }
-
 
     #[test]
     fn rejects_domain_label_64_characters() {
@@ -195,23 +174,18 @@ mod tests {
         long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("z".repeat(63).chars());
         let long_sub_domain = format!("{}.net", long_sub_domain_label);
-        let tests = vec!(
-            long_tld,
-            long_domain,
-            long_sub_domain
-        );
+        let tests = vec![long_tld, long_domain, long_sub_domain];
         for input in tests {
-            assert_err!(
-                SubscriptionFilteredEmail::parse(&input)
-            );
-        };
+            assert_err!(SubscriptionFilteredEmail::parse(&input));
+        }
     }
 
     #[test]
     fn django_non_ipv6() {
         // A few Django test cases
         // https://github.com/django/django/blob/master/tests/validators/tests.py#L48
-        let tests = vec![
+        let tests =
+            vec![
             (r#"!def!xyz%abc@example.com"#, true),
             ("example@valid-----hyphens.com", true),
             ("example@valid-with-hyphens.com", true),
@@ -243,7 +217,8 @@ mod tests {
         ];
         let mut rng = thread_rng();
         let methods_weights = [("new", 1), ("parse", 1), ("from_str", 1)];
-        let sampling_methods = WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
+        let sampling_methods =
+            WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
         for (input, expected) in tests {
             let method = methods_weights[sampling_methods.sample(&mut rng)].0;
             let result: Result<SubscriptionFilteredEmail, String> = {
@@ -256,15 +231,10 @@ mod tests {
                 }
             };
             if expected {
-                assert_ok!(
-                    result
-                );
+                assert_ok!(result);
             } else {
-                assert_err!(
-                    result
-                );
+                assert_err!(result);
             };
         }
     }
-
 }
