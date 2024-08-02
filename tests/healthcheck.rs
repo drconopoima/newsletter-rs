@@ -16,7 +16,7 @@ use std::{
 use uuid::Uuid;
 
 static TRACING_LAUNCH_LOCK: OnceLock<Mutex<bool>> = OnceLock::new();
-static TRACING_IS_INITIALIZED: OnceLock<bool> = OnceLock::new();                
+static TRACING_IS_INITIALIZED: OnceLock<bool> = OnceLock::new();
 
 pub struct ServerPostgres {
     pub address: String,
@@ -164,33 +164,6 @@ async fn subscription_400_incomplete_form_data() {
         ("name=Jane%20Doe", "missing email"),
         ("email=email_nobody_has%40drconopoima.com", "missing name"),
         ("", "missing email and name"),
-    ];
-    let subscriptions_route = &format!("{}/subscription", server_postgres.address);
-    for (invalid_body, error_message) in test_cases {
-        // Act
-        let response = client
-            .post(subscriptions_route)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(invalid_body)
-            .send()
-            .await
-            .expect(&format!("Failed POST request to {}", subscriptions_route));
-        // Assert
-        assert_eq!(
-            400,
-            response.status().as_u16(),
-            // Custom message for particular test case failure
-            "Expected API failure response code to be 400 Bad Request when body payload was {}.",
-            error_message
-        )
-    }
-}
-
-#[tokio::test]
-async fn subscription_500_invalid_input() {
-    let server_postgres = launch_http_server().await;
-    let client = reqwest::Client::new();
-    let test_cases = vec![
         ("email=thisisok%40drconopoima.com&name=ThisNameIsOutrageouslyLongWhatWasThisUserThinkingWeWillSurelyNeedToTrimThisBeforeSendingAnyCorrespondenceThereIsntAnyEmailClientWithAFontSizeSmallEnoughToProcessSuchASingleLineTextVarDisplayingItOnStandardPixelWidthScreensItsBestToReceiveAnErrorOnSubscriptionAttempt", "name too long"),
     ];
     let subscriptions_route = &format!("{}/subscription", server_postgres.address);
@@ -205,7 +178,7 @@ async fn subscription_500_invalid_input() {
             .expect(&format!("Failed POST request to {}", subscriptions_route));
         // Assert
         assert_eq!(
-            500,
+            400,
             response.status().as_u16(),
             // Custom message for particular test case failure
             "Expected API failure response code to be 400 Bad Request when body payload was {}.",
