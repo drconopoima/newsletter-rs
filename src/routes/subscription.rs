@@ -1,15 +1,9 @@
+use crate::subscription::SubscriptionFormData;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use deadpool_postgres::{Object, Pool};
-use regex::Regex;
 use std::sync::Arc;
 use tokio_postgres::Statement;
 use uuid::{NoContext, Timestamp, Uuid};
-
-#[derive(serde::Deserialize)]
-pub struct SubscriptionFormData {
-    email: String,
-    name: String,
-}
 
 #[tracing::instrument(
     name = "Processing incoming subscription.",
@@ -41,14 +35,6 @@ pub async fn subscription(
             .body("DB client error while processing subscription.");
     }
     let postgres_client = optional_postgres_client.unwrap();
-    let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
-    if !email_format.is_match(&form.email) {
-        tracing::warn!("User input error, malformed email, got '{}'.", &form.email);
-        return HttpResponse::BadRequest().body(format!(
-            "Input error, malformed email, got '{}'.",
-            &form.email
-        ));
-    }
     run_insert_subscriber_query(postgres_client, form).await
 }
 
@@ -104,7 +90,7 @@ pub async fn run_insert_subscriber_query(
     match postgres_client
         .query(
             &statement.unwrap(),
-            &[&generated_uuid, &form.email, &form.name],
+            &[&generated_uuid, &form.email.as_ref(), &form.name.as_ref()],
         )
         .await
     {
