@@ -70,10 +70,174 @@ impl FromStr for SubscriptionFilteredEmail {
     }
 }
 
-/* #[cfg(test)]
+#[cfg(test)]
 mod tests {
+    use crate::subscription::SubscriptionFilteredEmail;
+    use claims::{assert_err, assert_ok};
+
     #[test]
-    fn email_rejects_empty_input() {
-        unimplemented!()
+    fn accepts_standard_looking_cases() {
+        let tests = vec!(
+            "email@drconopoima.com",
+            "hyphenated-email@here.and.there.com",
+            "email@127.0.0.1",
+            "email@localhost"
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        }
     }
-} */
+
+    #[test]
+    fn accepts_input_needing_trimming() {
+        let tests = vec!(
+            "address@host.local\n",
+            " \tthisgotin@byaccidentaltypi.ng",
+            "\nsomescript@unintended.input\t \n"
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn rejects_empty_blank_whitespace() {
+        let tests = vec!(
+            "",
+            " \t",
+            "\n\t \n"
+        );
+        for input in tests {
+            assert_err!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn rejects_missing_tld(){
+        let tests = vec!(
+            "abc",
+            "abc@",
+        );
+        for input in tests {
+            assert_err!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn rejects_intermediate_whitespace(){
+        let tests = vec!(
+            "a @x.yz",
+            "a\n@b.net"
+        );
+        for input in tests {
+            assert_err!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn accepts_domain_label_63_characters() {
+        let mut long_tld = "admin@local.".to_owned();
+        long_tld.extend("y".repeat(63).chars());
+        let mut long_domain_label = "email@".to_owned();
+        long_domain_label.extend("y".repeat(63).chars());
+        let long_domain = format!("{}.com", long_domain_label);
+        let mut long_sub_domain_label = "anonymous@".to_owned();
+        long_sub_domain_label.extend("x".repeat(63).chars());
+        long_sub_domain_label.extend("z".repeat(63).chars());
+        let long_sub_domain = format!("{}.net", long_domain_label);
+        let tests = vec!(
+            long_tld,
+            long_domain,
+            long_sub_domain
+        );
+        for input in tests {
+            assert_ok!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        };
+    }
+
+
+    #[test]
+    fn rejects_domain_label_64_characters() {
+        let mut long_tld = "admin@abc.".to_owned();
+        long_tld.extend("n".repeat(64).chars());
+        let mut long_domain_label = "email@".to_owned();
+        long_domain_label.extend("y".repeat(64).chars());
+        let long_domain = format!("{}.com", long_domain_label);
+        let mut long_sub_domain_label = "anonymous@".to_owned();
+        long_sub_domain_label.extend("x".repeat(63).chars());
+        long_sub_domain_label.extend("y".repeat(64).chars());
+        long_sub_domain_label.extend("z".repeat(63).chars());
+        let long_sub_domain = format!("{}.net", long_domain_label);
+        let tests = vec!(
+            long_tld,
+            long_domain,
+            long_sub_domain
+        );
+        for input in tests {
+            assert_err!(
+                SubscriptionFilteredEmail::new(&input)
+            );
+        };
+    }
+
+    #[test]
+    fn django_non_ipv6() {
+        // A few Django test cases
+        // https://github.com/django/django/blob/master/tests/validators/tests.py#L48
+        let tests = vec![
+            (r#"!def!xyz%abc@example.com"#, true),
+            ("example@valid-----hyphens.com", true),
+            ("example@valid-with-hyphens.com", true),
+            (r#""test@test"@example.com"#, false),
+            // domain name labels up to 63 characters per RFC 1034
+            ("a@atm.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", true),
+            ("a@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.atm", true),
+            (
+                "a@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbb.atm",
+                true,
+            ),
+            // 64 * a
+            ("a@atm.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false),
+            ("abc@.com", false),
+            ("something@@somewhere.com", false),
+            ("email@[127.0.0.256]", false),
+            ("example@invalid-.com", false),
+            ("example@-invalid.com", false),
+            ("example@invalid.com-", false),
+            ("example@inv-.alid-.com", false),
+            ("example@inv-.-alid.com", false),
+            (r#"test@example.com\n\n<script src="x.js">"#, false),
+            (r#""\\\011"@here.com"#, false),
+            (r#""\\\012"@here.com"#, false),
+            ("trailingdot@shouldfail.com.", false),
+            (r#""test@test"\n@example.com"#, false),
+            // underscores are not allowed
+            ("John.Doe@exam_ple.com", false),
+        ];
+
+        for (input, expected) in tests {
+            if expected {
+                assert_ok!(
+                    SubscriptionFilteredEmail::new(&input)
+                );
+            } else {
+                assert_err!(
+                    SubscriptionFilteredEmail::new(&input)
+                );
+            };
+        }
+    }
+
+}
