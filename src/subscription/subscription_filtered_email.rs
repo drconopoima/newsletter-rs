@@ -153,8 +153,10 @@ mod tests {
         let long_domain = format!("{}.com", long_domain_label);
         let mut long_sub_domain_label = "anonymous@".to_owned();
         long_sub_domain_label.extend("x".repeat(63).chars());
+        long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("z".repeat(63).chars());
-        let long_sub_domain = format!("{}.net", long_domain_label);
+        // println!("{}",long_sub_domain_label);
+        let long_sub_domain = format!("{}.net", long_sub_domain_label);
         let tests = vec!(
             long_tld,
             long_domain,
@@ -177,9 +179,12 @@ mod tests {
         let long_domain = format!("{}.com", long_domain_label);
         let mut long_sub_domain_label = "anonymous@".to_owned();
         long_sub_domain_label.extend("x".repeat(63).chars());
+        long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("y".repeat(64).chars());
+        long_sub_domain_label.extend(".".repeat(1).chars());
         long_sub_domain_label.extend("z".repeat(63).chars());
-        let long_sub_domain = format!("{}.net", long_domain_label);
+        // println!("{}",long_sub_domain_label);
+        let long_sub_domain = format!("{}.net", long_sub_domain_label);
         let tests = vec!(
             long_tld,
             long_domain,
