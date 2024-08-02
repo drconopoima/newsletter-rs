@@ -74,6 +74,8 @@ impl FromStr for SubscriptionFilteredEmail {
 mod tests {
     use crate::subscription::SubscriptionFilteredEmail;
     use claims::{assert_err, assert_ok};
+    use std::str::FromStr;
+    use rand::{prelude::*,distributions::WeightedIndex};
 
     #[test]
     fn accepts_standard_looking_cases() {
@@ -111,11 +113,23 @@ mod tests {
             " \t",
             "\n\t \n"
         );
-        for input in tests {
-            assert_err!(
+        let mut rng = thread_rng();
+        let methods_weights = [("new", 1), ("parse", 1), ("from_str", 1)];
+        let sampling_methods = WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
+        let results: Vec<Result<SubscriptionFilteredEmail, String>> = tests.into_iter().map(|input| {
+            let method = methods_weights[sampling_methods.sample(&mut rng)].0;
+            if method.eq("new") {
                 SubscriptionFilteredEmail::new(&input)
-            );
-        };
+            } else if method.eq("from_str") {
+                SubscriptionFilteredEmail::from_str(&input)
+            } else {
+                SubscriptionFilteredEmail::parse(&input)
+            }
+        }).collect();
+        println!("{:?}",&results);
+        for result in results {
+            assert_err!(result);
+        }
     }
 
     #[test]
@@ -231,15 +245,28 @@ mod tests {
             // underscores are not allowed
             ("John.Doe@exam_ple.com", false),
         ];
-
+        let mut rng = thread_rng();
+        let methods_weights = [("new", 1), ("parse", 1), ("from_str", 1)];
+        let sampling_methods = WeightedIndex::new(methods_weights.iter().map(|weight| weight.1)).unwrap();
         for (input, expected) in tests {
+            let method = methods_weights[sampling_methods.sample(&mut rng)].0;
+            let result: Result<SubscriptionFilteredEmail, String> = {
+                if method.eq("new") {
+                    SubscriptionFilteredEmail::new(&input)
+                } else if method.eq("from_str") {
+                    SubscriptionFilteredEmail::from_str(&input)
+                } else {
+                    SubscriptionFilteredEmail::parse(&input)
+                }
+            };
+            println!("{:?}",&result);
             if expected {
                 assert_ok!(
-                    SubscriptionFilteredEmail::new(&input)
+                    result
                 );
             } else {
                 assert_err!(
-                    SubscriptionFilteredEmail::new(&input)
+                    result
                 );
             };
         }
