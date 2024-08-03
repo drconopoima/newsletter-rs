@@ -1,4 +1,4 @@
-use regex::Regex;
+use std::collections::HashSet;
 use std::convert::AsRef;
 use std::fmt;
 use std::ops::Deref;
@@ -18,31 +18,69 @@ impl SubscriptionFilteredName {
             return Err(format!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name));
         }
 
-        let forbidden_chars = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
+        let forbidden_chars: HashSet<&char> = ['/', '(', ')', '"', '<', '>', '\\', '{', '}']
+            .iter()
+            .collect();
         let contains_forbidden_chars = trimmed_name.chars().any(|g| forbidden_chars.contains(&g));
 
         if contains_forbidden_chars {
             return Err(format!("Provided name '{}' must not contain one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", trimmed_name));
         }
+        let name_middle_trim = match Self::process_name(trimmed_name, None) {
+            Ok(name) => name,
+            Err(msg) => return Err(msg),
+        };
 
-        let intermediate_whitespace = Regex::new(r"^\s+|\s+$|\s+").unwrap();
-        let name_middle_trim = intermediate_whitespace
-            .replace_all(trimmed_name, " ")
-            .into_owned();
-
-        let is_too_long = name_middle_trim.len() > 254;
-
-        if is_too_long {
-            return Err(format!("Provided name '{}' is longer than the limit of 254 characters. Please provide a nickname to subscribe.", name_middle_trim));
-        }
-        // Certain symbols appear in names as long as you don't closely repeat them next to themselves
-        // Each character in separate group due to library not supporting backreferences, nor look-behinds
-        let repeat_special_chars = Regex::new(r"(([']){2,}|([,]){2,}|([;]){2,}|([.]){2,}|([:]){2,}|([*]){2,}|([+]){2,}|([\\]){2,}|([-]){2,}|([&]){2,}|([%]){2,}|([¨]){2,}|([`]){2,}|([´]){2,}|([~]){2,}|([#]){2,}|([\^]){2,}|([%]){2,}|([@]){2,}|([?]){2,}|([¿]){2,}|([|]){2,}|([!]){2,}|([¡]){2,}|([=]){2,}|([+]){2,})+?").unwrap();
-        let contains_repeat_special_chars = repeat_special_chars.is_match(&name_middle_trim);
-        if contains_repeat_special_chars {
-            return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", &name_middle_trim));
-        }
         Ok(Self(name_middle_trim.to_owned()))
+    }
+}
+
+impl SubscriptionFilteredName {
+    fn process_name(
+        name: &str,
+        special_char_list: Option<HashSet<String>>,
+    ) -> Result<String, String> {
+        #[allow(suspicious_double_ref_op)]
+        let allowed_non_consecutive_special_characters = match special_char_list {
+            Some(char_set) => char_set,
+            None => [
+                "'", ",", ";", ".", ":", "*", "+", "-", "&", "%", "¨", "`", "´", "~", "#", "^",
+                "%", "@", "?", "¿", "|", "!", "¡", "=",
+            ]
+            .iter()
+            .map(|x| x.clone().to_owned())
+            .collect::<HashSet<String>>(),
+        };
+        let mut chars: Vec<(usize, char)> = name.chars().enumerate().collect();
+        let is_too_long = chars.len() > 4096;
+        if is_too_long {
+            return Err("Provided name is longer than the library's parsing capacity of 4096 characters. Please provide a nickname to subscribe.".to_string());
+        }
+        let mut previous: String = "".into();
+        let mut idx = 0;
+        while idx < chars.len() {
+            if idx >= 254 {
+                return Err("Provided name is longer than the limit of 254 characters. Please provide a nickname to subscribe.".to_string());
+            }
+            if chars[idx].1.is_whitespace() {
+                if previous.eq(" ") {
+                    chars.remove(idx);
+                    continue;
+                } else {
+                    previous = " ".into();
+                    chars[idx].1 = ' '
+                }
+            }
+            let current: String = chars[idx].1.into();
+            if allowed_non_consecutive_special_characters.contains(&current)
+                && previous.eq(&current)
+            {
+                return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", &name));
+            }
+            previous = current;
+            idx += 1
+        }
+        Ok(chars.into_iter().map(|(_, y)| y).collect())
     }
 }
 
