@@ -2,6 +2,7 @@ use actix_web::dev::Server;
 use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
+use newsletter_rs::smtp_email_sender;
 use newsletter_rs::{
     configuration::{
         get_configuration, DatabaseSettings, MigrationSettings, Settings, SslSettings,
@@ -13,7 +14,6 @@ use newsletter_rs::{
 use secrecy::SecretString;
 use std::net::TcpListener;
 use std::time::Duration;
-use newsletter_rs::smtp_email_sender;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
