@@ -6,6 +6,13 @@ use std::sync::Arc;
 use tokio_postgres::Statement;
 use uuid::{NoContext, Timestamp, Uuid};
 
+fn parse_subscription_form_data(form: FormData) -> Result<SubscriptionFormData, String> {
+    match SubscriptionFormData::try_from(form) {
+        Ok(form_data) => Ok(form_data),
+        Err(error) => Err(error),
+    }
+}
+
 #[tracing::instrument(
     name = "Processing incoming subscription.",
     skip( form, request ),
@@ -15,7 +22,7 @@ use uuid::{NoContext, Timestamp, Uuid};
     )
 )]
 pub async fn subscription(request: HttpRequest, form: web::Form<FormData>) -> impl Responder {
-    let subscription_form: SubscriptionFormData = match SubscriptionFormData::try_from(form.0) {
+    let subscription_form: SubscriptionFormData = match parse_subscription_form_data(form.0) {
         Ok(form_data) => form_data,
         Err(error) => {
             tracing::error!("routes/subscription.rs {}", error);
