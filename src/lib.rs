@@ -3,7 +3,7 @@ pub mod configuration;
 pub mod postgres;
 pub mod readiness;
 pub mod routes;
+pub mod smtp_email_sender;
 pub mod startup;
 pub mod subscription;
 pub mod telemetry;
-pub mod smtp_email_sender;
