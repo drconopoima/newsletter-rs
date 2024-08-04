@@ -100,7 +100,7 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn random_fuzz_new_display() {
+    fn random_fuzz_censoredstring_display() {
         arbtest(|u| {
             let value = u.arbitrary::<String>()?;
             let censored_string: CensoredString = CensoredString::new(&value, None);
@@ -112,9 +112,10 @@ mod tests {
     }
 
     #[test]
-    fn random_fuzz_fromstr_debug() {
+    fn random_fuzz_censoredstring_debug() {
         arbtest(|u| {
             let value = u.arbitrary::<String>()?;
+            // dbg!(&value);   // cargo test random_fuzz_censoredstring_debug -- --nocapture
             let censored_string: CensoredString = CensoredString::from_str(&value).unwrap();
             let debug_repr = format!{"newsletter-rs::CensoredString{{pub representation: String::from({})}}",CENSOR_STRING};
             assert_eq!(format!{"{:?}",censored_string}, debug_repr);

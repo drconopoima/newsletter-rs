@@ -83,9 +83,11 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn random_fuzz() {
+    fn random_fuzz_email_nopanic() {
         arbtest(|u| {
-            let _ = SubscriptionFilteredEmail::new(u.arbitrary().expect(""));
+            let fuzz = u.arbitrary().expect("");
+            // dbg!(&fuzz);   // cargo test random_fuzz_email_nopanic -- --nocapture
+            let _ = SubscriptionFilteredEmail::new(fuzz);
             Ok(())
         })
         .budget_ms(1_250)
@@ -112,6 +114,7 @@ mod tests {
 
     #[quickcheck_macros::quickcheck]
     fn accepts_random_faked_email(valid_email: ValidEmail) -> bool {
+        // dbg!(&valid_email.0);   // cargo test accepts_random_faked_email -- --nocapture
         SubscriptionFilteredEmail::parse(&valid_email.0).is_ok()
     }
 

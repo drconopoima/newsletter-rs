@@ -122,9 +122,11 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn random_fuzz() {
+    fn random_fuzz_name_nopanic() {
         arbtest(|u| {
-            let _ = SubscriptionFilteredName::new(u.arbitrary().expect(""));
+            let fuzz = u.arbitrary().expect("");
+            // dbg!(&fuzz); // cargo test random_fuzz_name_nopanic -- --nocapture
+            let _ = SubscriptionFilteredName::new(fuzz);
             Ok(())
         })
         .budget_ms(1_250)
