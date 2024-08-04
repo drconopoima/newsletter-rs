@@ -36,6 +36,7 @@ tracing-actix-web = { version = "^0.7" }
 serde-aux = { version = "^4", default-features = false, features = [] }
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
+lettre = { "version" = "^0.11", default-features = false, features = ["tokio1", "native-tls", "tokio1-native-tls", "smtp-transport", "pool", "hostname", "builder"] }
 
 [dev-dependencies]
 arbitrary = { version = "^1" }

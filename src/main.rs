@@ -14,6 +14,7 @@ use newsletter_rs::{
 use std::net::TcpListener;
 use std::str::FromStr;
 use std::time::Duration;
+use newsletter_rs::smtp_email_sender;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -25,6 +26,10 @@ async fn main() -> Result<()> {
         std::io::stdout,
     );
     telemetry::init_subscriber(subscriber).with_context(|| format!("{}::main: Failed to initialize tracing subscriber with name '{}' and filter level '{}'", env!("CARGO_PKG_NAME"), subscriber_name, env_filter))?;
+    match smtp_email_sender::send_email() {
+        Ok(_) => tracing::info!("Email sent successfully!"),
+        Err(e) => tracing::warn!("Could not send email: {:?}", e),
+    };
     let config_file: &str = "main.yaml";
     let configuration: Settings = get_configuration(config_file).unwrap_or_else(|error| {
         panic!(

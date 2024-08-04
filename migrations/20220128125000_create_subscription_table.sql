@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 -- Create Subscription Table
 CREATE TABLE IF NOT EXISTS newsletter.subscription(
-    id uuid NOT NULL,
+    id uuid NOT NULL UNIQUE,
     PRIMARY KEY (id),
     email citext NOT NULL UNIQUE,
     name TEXT NOT NULL,
