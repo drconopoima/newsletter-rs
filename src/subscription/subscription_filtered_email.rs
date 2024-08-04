@@ -83,7 +83,7 @@ mod tests {
             let _ = SubscriptionFilteredEmail::new(u.arbitrary().expect(""));
             Ok(())
         })
-        .budget_ms(2_500)
+        .budget_ms(1_250)
         .run();
     }
     #[test]
