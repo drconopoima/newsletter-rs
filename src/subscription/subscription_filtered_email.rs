@@ -74,7 +74,12 @@ mod tests {
     use crate::subscription::SubscriptionFilteredEmail;
     use arbtest::arbtest;
     use claims::{assert_err, assert_ok};
+    use fake::faker::internet::en::SafeEmail;
+    use fake::Fake;
+    use quickcheck::{Arbitrary, Gen};
+    use quickcheck_macros;
     use rand::{distributions::WeightedIndex, prelude::*};
+    use rand::{rngs::StdRng, SeedableRng};
     use std::str::FromStr;
 
     #[test]
@@ -86,6 +91,38 @@ mod tests {
         .budget_ms(1_250)
         .run();
     }
+
+    #[test]
+    fn rejects_missing_at_symbol() {
+        let tests = vec!["email.drconopoima.com", "[::1].127.0.0.1"];
+        for input in tests {
+            assert_err!(SubscriptionFilteredEmail::parse(&input));
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    struct ValidEmail(String);
+    impl Arbitrary for ValidEmail {
+        fn arbitrary(g: &mut Gen) -> Self {
+            let mut rng = StdRng::seed_from_u64(u64::arbitrary(g));
+            let email = SafeEmail().fake_with_rng(&mut rng);
+            ValidEmail(email)
+        }
+    }
+
+    #[quickcheck_macros::quickcheck]
+    fn accepts_random_faked_email(valid_email: ValidEmail) -> bool {
+        SubscriptionFilteredEmail::parse(&valid_email.0).is_ok()
+    }
+
+    #[test]
+    fn rejects_missing_subject_address() {
+        let tests = vec!["@drconopoima.com", "@127.0.0.1"];
+        for input in tests {
+            assert_err!(SubscriptionFilteredEmail::from_str(&input));
+        }
+    }
+
     #[test]
     fn accepts_standard_looking_cases() {
         let tests = vec![

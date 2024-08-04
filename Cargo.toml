@@ -45,6 +45,9 @@ uuid = { version = "^1", default-features = false, features = ["v7", "v4"] }
 serde_urlencoded = "^0.7"
 claims = "^0.7"
 rand = "^0.8"
+fake = "^2"
+quickcheck = "^1"
+quickcheck_macros = "^1"
 
 [patch.crates-io]
 config = { git = 'https://github.com/mehcode/config-rs.git', rev = 'c4778596cd3f3b1001ca35bd6960fc1b139746ea' }
