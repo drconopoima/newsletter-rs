@@ -75,7 +75,15 @@ mod tests {
     use claims::{assert_err, assert_ok};
     use rand::{distributions::WeightedIndex, prelude::*};
     use std::str::FromStr;
+    use arbtest::arbtest;
 
+    #[test]
+    fn random_fuzz() {
+        arbtest(|u| {
+            let _ = SubscriptionFilteredEmail::new(u.arbitrary().expect(""));
+            Ok(())
+      }).budget_ms(2_500).run();
+    }
     #[test]
     fn accepts_standard_looking_cases() {
         let tests = vec![

@@ -38,6 +38,8 @@ postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
 
 [dev-dependencies]
+arbitrary = { version = "^1" }
+arbtest = { version = "^0.3" }
 reqwest = { version = "^0.12", features = ["json"] }
 uuid = { version = "^1", default-features = false, features = ["v7", "v4"] }
 serde_urlencoded = "^0.7"
