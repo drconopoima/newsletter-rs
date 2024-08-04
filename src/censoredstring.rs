@@ -81,7 +81,7 @@ impl<'de> Deserialize<'de> for CensoredString {
 
 impl fmt::Debug for CensoredString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let debug_repr = format!{"newsletter-rs::CensoredString{{pub representation: String::from({})}}",&self.representation.as_str()};
+        let debug_repr = format! {"newsletter-rs::CensoredString{{pub representation: String::from({})}}",&self.representation.as_str()};
         fmt::Display::fmt(&debug_repr, f)
     }
 }
@@ -95,7 +95,7 @@ impl fmt::Display for CensoredString {
 
 #[cfg(test)]
 mod tests {
-    use crate::censoredstring::{CENSOR_STRING,CensoredString};
+    use crate::censoredstring::{CensoredString, CENSOR_STRING};
     use arbtest::arbtest;
     use std::str::FromStr;
 
@@ -104,9 +104,11 @@ mod tests {
         arbtest(|u| {
             let value = u.arbitrary::<String>()?;
             let censored_string: CensoredString = CensoredString::new(&value, None);
-            assert_eq!(format!{"{}",censored_string}, CENSOR_STRING);
+            assert_eq!(format! {"{}",censored_string}, CENSOR_STRING);
             Ok(())
-      }).budget_ms( 500).run();
+        })
+        .budget_ms(500)
+        .run();
     }
 
     #[test]
