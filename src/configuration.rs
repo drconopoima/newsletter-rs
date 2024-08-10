@@ -1,4 +1,5 @@
-use anyhow::{Context, Error, Result};
+use anyhow::Result;
+use config::ConfigError;
 use config::{Config, Environment, File, FileFormat};
 use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::{
@@ -147,28 +148,20 @@ pub struct SmtpRelayCredentialsSettings {
 }
 
 // Read top-level configuration file with extension YAML...
-pub fn get_configuration(filename: &str) -> Result<Settings, Error> {
+pub fn get_configuration(filename: &str) -> Result<Settings, ConfigError> {
     let environment = std::env::var("APP__ENVIRONMENT").unwrap_or_else(|_| "local".to_owned());
     // Initialize configuration reader
     let default_configuration_file = &*format!("{CONFIGURATION_SUBDIRECTORY}/{filename}");
     let environment_configuration_file = &*format!("{CONFIGURATION_SUBDIRECTORY}/{environment}");
     let builder = Config::builder()
         .add_source(File::new(default_configuration_file, FileFormat::Yaml))
-        .add_source(File::new(environment_configuration_file,FileFormat::Yaml))
-        .add_source(Environment::with_prefix("APP_").try_parsing(true).separator("_"))
-        .build()
-        .with_context(|| {
-            format!(
-                "{}::configuration::get_configuration: Failed to build configuration from sources: \"{default_configuration_file}\" and \"{environment_configuration_file}\"",
-                env!("CARGO_PKG_NAME")
-            )
-        })?;
-    info!("Successfully built configuration: '{:?}'", builder);
-    // Convert into Result<Settings, ConfigError>
-    builder.try_deserialize::<Settings>().with_context(|| {
-        format!(
-            "{}::configuration::get_configuration: Failed to deserialize configuration",
-            env!("CARGO_PKG_NAME")
+        .add_source(File::new(environment_configuration_file, FileFormat::Yaml))
+        .add_source(
+            Environment::with_prefix("APP_")
+                .try_parsing(true)
+                .separator("_"),
         )
-    })
+        .build()?;
+    info!("Successfully built configuration: '{:?}'", builder);
+    builder.try_deserialize::<Settings>()
 }
