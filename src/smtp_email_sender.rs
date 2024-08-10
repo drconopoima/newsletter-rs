@@ -51,9 +51,9 @@ pub fn send_email(
 
 pub fn get_mailbox(name: Option<&str>, address: &str) -> String {
     let receiver = if let Some(inner_name) = name {
-        format!{"{} ", inner_name}
+        format! {"{} ", inner_name}
     } else {
         "".to_owned()
     };
-    format!{"{}<{}>",receiver,address}
+    format! {"{}<{}>",receiver,address}
 }

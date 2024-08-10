@@ -77,6 +77,7 @@ async fn launch_http_server() -> ServerPostgres {
         listener,
         postgres_pool.clone(),
         None,
+        None,
         Some(time::Duration::from_millis(100000000)),
     )
     .expect("Failed to listen on address");
