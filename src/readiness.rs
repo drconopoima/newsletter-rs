@@ -1,5 +1,6 @@
 use anyhow::Result;
 use deadpool_postgres::Pool;
+use lettre::SmtpTransport;
 use std::sync::Arc;
 use std::time::SystemTime;
 use time::{error, format_description::well_known::Rfc3339, OffsetDateTime};
@@ -20,10 +21,17 @@ pub struct HealthResponse {
 pub struct ChecksResponse {
     pub postgres_read: PostgresReadCheck,
     pub postgres_write: PostgresWriteCheck,
+    pub smtp_check: Option<SmtpCheck>,
 }
 
 #[derive(serde::Serialize)]
+pub struct SmtpCheck {
+    pub status: String,
+    pub time: Option<String>,
+    pub output: bool,
+}
 
+#[derive(serde::Serialize)]
 pub struct PostgresReadCheck {
     pub status: String,
     pub time: Option<String>,
@@ -45,7 +53,10 @@ pub struct PostgresWriteCheck {
     pub version: Option<String>,
 }
 
-pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
+pub async fn probe_readiness(
+    postgres_pool: Arc<Pool>,
+    _smtp_transport: Arc<Option<SmtpTransport>>,
+) -> HealthResponse {
     let now_systemtime = SystemTime::now();
     let now_string = to_rfc3339(now_systemtime).unwrap();
     let postgres_client_error = "DB client error";
@@ -57,7 +68,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
         }
     };
     if optional_postgres_client.is_none() {
-        return build_postgres_readwrite_response(
+        return build_healthcheck_response(
             STATUS_FAIL,
             STATUS_FAIL,
             STATUS_WARN,
@@ -82,7 +93,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
         }
     };
     if statement_read.is_none() {
-        return build_postgres_readwrite_response(
+        return build_healthcheck_response(
             STATUS_FAIL,
             STATUS_FAIL,
             STATUS_WARN,
@@ -99,7 +110,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
         }
     };
     if optional_row.is_none() {
-        return build_postgres_readwrite_response(
+        return build_healthcheck_response(
             STATUS_FAIL,
             STATUS_FAIL,
             STATUS_WARN,
@@ -157,6 +168,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
             output_pass,
             postgres_read,
             postgres_write,
+            None,
         );
     }
     let updated_by_parameter = format!("newsletter-rs {}", &now_string);
@@ -186,6 +198,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
             output_pass,
             postgres_read,
             postgres_write,
+            None,
         );
     }
     let row_results = optional_row.unwrap();
@@ -205,6 +218,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
         output_pass,
         postgres_read,
         postgres_write,
+        None,
     )
 }
 
@@ -251,10 +265,12 @@ pub fn get_healthcheck_object(
     output: &str,
     postgres_read: PostgresReadCheck,
     postgres_write: PostgresWriteCheck,
+    smtp_check: Option<SmtpCheck>,
 ) -> HealthResponse {
     let checks = ChecksResponse {
         postgres_read,
         postgres_write,
+        smtp_check,
     };
 
     HealthResponse {
@@ -266,7 +282,7 @@ pub fn get_healthcheck_object(
     }
 }
 
-pub fn build_postgres_readwrite_response(
+pub fn build_healthcheck_response(
     postgres_read_status: &str,
     postgres_write_status: &str,
     global_status: &str,
@@ -276,5 +292,20 @@ pub fn build_postgres_readwrite_response(
     let postgres_read = build_postgres_read_response(postgres_read_status, None, None, output);
     let postgres_write =
         build_postgres_write_response(postgres_write_status, None, None, None, output);
-    get_healthcheck_object(global_status, now_string, "", postgres_read, postgres_write)
+    get_healthcheck_object(
+        global_status,
+        now_string,
+        "",
+        postgres_read,
+        postgres_write,
+        None,
+    )
+}
+
+pub fn build_smtp_check(status: &str, time: Option<String>, output: bool) -> SmtpCheck {
+    SmtpCheck {
+        status: status.to_owned(),
+        time,
+        output,
+    }
 }

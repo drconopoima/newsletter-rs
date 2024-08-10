@@ -119,6 +119,7 @@ async fn main() -> Result<()> {
     let (server1, server2): (Server, Option<Server>) = run(
         listener,
         postgres_connection,
+        None,
         admin_bind_address,
         health_cache_validity_ms,
     )?;

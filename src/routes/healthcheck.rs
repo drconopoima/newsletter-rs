@@ -1,5 +1,5 @@
 use crate::readiness::{
-    build_postgres_readwrite_response, to_rfc3339, CachedHealth, STATUS_FAIL, STATUS_WARN,
+    build_healthcheck_response, to_rfc3339, CachedHealth, STATUS_FAIL, STATUS_WARN,
 };
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use std::sync::{Arc, RwLock};
@@ -23,7 +23,7 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
     };
     let now_systemtime = SystemTime::now();
     let now_string = to_rfc3339(now_systemtime).unwrap();
-    HttpResponse::Ok().json(build_postgres_readwrite_response(
+    HttpResponse::Ok().json(build_healthcheck_response(
         STATUS_FAIL,
         STATUS_FAIL,
         STATUS_WARN,
