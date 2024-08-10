@@ -24,6 +24,7 @@ pub struct ApplicationSettings {
     pub port: u16,
     #[serde(deserialize_with = "deserialize_option_number_from_string")]
     pub healthcachevalidityms: Option<u32>,
+    pub smtp: SmtpSettings,
 }
 
 #[derive(serde::Deserialize)]
@@ -121,6 +122,28 @@ impl DatabaseSettings {
             self.username, &CENSOR_STRING, self.host, self.port
         )
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct SmtpSettings {
+    pub from: String,
+    pub name: String,
+    pub reply_to: String,
+    pub relay: SmtpRelaySettings,
+}
+
+#[derive(serde::Deserialize)]
+pub struct SmtpRelaySettings {
+    pub address: String,
+    #[serde(deserialize_with = "deserialize_option_number_from_string")]
+    pub port: Option<u16>,
+    pub credentials: SmtpRelayCredentialsSettings,
+}
+
+#[derive(serde::Deserialize)]
+pub struct SmtpRelayCredentialsSettings {
+    pub username: String,
+    pub password: CensoredString,
 }
 
 // Read top-level configuration file with extension YAML...
