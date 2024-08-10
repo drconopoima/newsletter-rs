@@ -1,20 +1,37 @@
-use lettre::transport::smtp::{authentication, response, Error};
-use lettre::{Message, SmtpTransport, Transport};
+use anyhow::Result;
+use core::convert::TryInto;
+use lettre::{
+    message::MessageBuilder,
+    transport::smtp::{authentication, SmtpTransportBuilder},
+    Message, SmtpTransport,
+};
 
-pub fn send_email() -> Result<response::Response, Error> {
-    let email = Message::builder()
-        .from("newsletter-rs <postmaster@email.tld>".parse().unwrap())
-        .reply_to("no-reply@example.com".parse().unwrap())
-        .to("example <email@example.com>".parse().unwrap())
-        .subject("Rust Email")
-        .body(String::from("Hello, this is a test email from Rust!"))
-        .unwrap();
-    let creds = authentication::Credentials::new(
-        "ausernamefromansmtp".to_string(),
-        "apasswordfromansmtp".to_string(),
-    );
-    let mailer = SmtpTransport::relay("ansmtp.server.tld")?
-        .credentials(creds)
-        .build();
-    mailer.send(&email)
+pub fn new_email_builder(
+    name: &str,
+    from: &str,
+    reply_to: &str,
+) -> Result<MessageBuilder, anyhow::Error> {
+    let message_builder = Message::builder();
+    Ok(TryInto::<MessageBuilder>::try_into(
+        message_builder
+            .from(format! {"{} <{}>",name,from}.parse()?)
+            .reply_to(reply_to.parse()?),
+    )?)
+}
+
+pub fn new_smtp_relay_mailer(
+    server: &str,
+    creds: authentication::Credentials,
+    port: Option<u16>,
+) -> Result<SmtpTransportBuilder, anyhow::Error> {
+    let mailer = if let Some(port_number) = port {
+        SmtpTransport::relay(server)?.port(port_number)
+    } else {
+        SmtpTransport::relay(server)?
+    };
+    Ok(mailer.credentials(creds))
+}
+
+pub fn get_credentials(username: String, password: String) -> authentication::Credentials {
+    authentication::Credentials::new(username, password)
 }
