@@ -2,7 +2,6 @@ use actix_web::dev::Server;
 use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
-use newsletter_rs::smtp_email_sender;
 use newsletter_rs::{
     censoredstring::CensoredString,
     configuration::{
@@ -26,10 +25,6 @@ async fn main() -> Result<()> {
         std::io::stdout,
     );
     telemetry::init_subscriber(subscriber).with_context(|| format!("{}::main: Failed to initialize tracing subscriber with name '{}' and filter level '{}'", env!("CARGO_PKG_NAME"), subscriber_name, env_filter))?;
-    match smtp_email_sender::send_email() {
-        Ok(_) => tracing::info!("Email sent successfully!"),
-        Err(e) => tracing::warn!("Could not send email: {:?}", e),
-    };
     let config_file: &str = "main.yaml";
     let configuration: Settings = get_configuration(config_file).unwrap_or_else(|error| {
         panic!(
