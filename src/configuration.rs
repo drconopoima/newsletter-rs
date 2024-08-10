@@ -1,5 +1,6 @@
 use crate::censoredstring::CensoredString;
-use anyhow::{Context, Error, Result};
+use anyhow::Result;
+use config::ConfigError;
 use config::{Config, Environment, File, FileFormat};
 use serde_aux::field_attributes::{
     deserialize_number_from_string, deserialize_option_number_from_string,
@@ -140,7 +141,7 @@ pub struct SmtpRelayCredentialsSettings {
 }
 
 // Read top-level configuration file with extension YAML...
-pub fn get_configuration(filename: &str) -> Result<Settings, Error> {
+pub fn get_configuration(filename: &str) -> Result<Settings, ConfigError> {
     let environment = std::env::var("APP__ENVIRONMENT").unwrap_or_else(|_| "local".to_owned());
     // Initialize configuration reader
     let default_configuration_file = &*format!("{}/{}", CONFIGURATION_SUBDIRECTORY, filename);
@@ -148,23 +149,13 @@ pub fn get_configuration(filename: &str) -> Result<Settings, Error> {
         &*format!("{}/{}", CONFIGURATION_SUBDIRECTORY, environment);
     let builder = Config::builder()
         .add_source(File::new(default_configuration_file, FileFormat::Yaml))
-        .add_source(File::new(environment_configuration_file,FileFormat::Yaml))
-        .add_source(Environment::with_prefix("APP_").try_parsing(true).separator("_"))
-        .build()
-        .with_context(|| {
-            format!(
-                "{}::configuration::get_configuration: Failed to build configuration from sources: '{}' and '{}'",
-                env!("CARGO_PKG_NAME"),
-                default_configuration_file,
-                environment_configuration_file
-            )
-        })?;
-    info!("Successfully built configuration: '{:?}'", builder);
-    // Convert into Result<Settings, ConfigError>
-    builder.try_deserialize::<Settings>().with_context(|| {
-        format!(
-            "{}::configuration::get_configuration: Failed to deserialize configuration",
-            env!("CARGO_PKG_NAME")
+        .add_source(File::new(environment_configuration_file, FileFormat::Yaml))
+        .add_source(
+            Environment::with_prefix("APP_")
+                .try_parsing(true)
+                .separator("_"),
         )
-    })
+        .build()?;
+    info!("Successfully built configuration: '{:?}'", builder);
+    builder.try_deserialize::<Settings>()
 }
