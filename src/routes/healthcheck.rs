@@ -29,5 +29,6 @@ pub async fn healthcheck(request: HttpRequest) -> impl Responder {
         STATUS_WARN,
         &now_string,
         "Could not read state.",
+        None,
     ))
 }

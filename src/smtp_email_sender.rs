@@ -1,7 +1,10 @@
+use crate::censoredstring::CensoredString;
 use anyhow::Result;
 use core::convert::TryInto;
 use lettre::{message::MessageBuilder, transport::smtp, Message, SmtpTransport, Transport};
+use std::str::FromStr;
 
+#[tracing::instrument(name = "Generating email builder.")]
 pub fn new_email_builder(
     name: Option<&str>,
     from: &str,
@@ -15,6 +18,7 @@ pub fn new_email_builder(
     )?)
 }
 
+#[tracing::instrument(name = "Generating SmtpTransport Pool.")]
 pub fn new_smtp_relay_mailer(
     server: &str,
     creds: smtp::authentication::Credentials,
@@ -28,15 +32,23 @@ pub fn new_smtp_relay_mailer(
     Ok(mailer.credentials(creds).build())
 }
 
-pub fn get_credentials(username: String, password: String) -> smtp::authentication::Credentials {
-    smtp::authentication::Credentials::new(username, password)
+#[tracing::instrument(name = "Generating SMTP Credentials.")]
+pub fn get_smtp_credentials(
+    username: &str,
+    password: &CensoredString,
+) -> smtp::authentication::Credentials {
+    smtp::authentication::Credentials::new(
+        std::string::String::from_str(username).unwrap(),
+        std::string::String::from_str(password).unwrap(),
+    )
 }
 
+#[tracing::instrument(name = "Sending email.")]
 pub fn send_email(
     to_name: Option<&str>,
     to_email: &str,
     message: MessageBuilder,
-    smtp_mailer: smtp::SmtpTransport,
+    smtp_mailer: &smtp::SmtpTransport,
     subject: &str,
     body: &str,
 ) -> Result<smtp::response::Response, anyhow::Error> {
