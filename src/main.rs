@@ -8,6 +8,9 @@ use newsletter_rs::{
         get_configuration, DatabaseSettings, MigrationSettings, Settings, SslSettings,
     },
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
+    smtp_email_sender::{
+        get_smtp_credentials, new_email_builder, new_smtp_relay_mailer, send_email,
+    },
     startup::run,
     telemetry,
 };
@@ -107,23 +110,44 @@ async fn main() -> Result<()> {
     if let Some(ref admin) = configuration.admin {
         admin_bind_address = Some((admin.address.to_owned(), admin.port));
     }
-    let health_cache_validity_ms: Option<Duration> =
-        if configuration.application.healthcachevalidityms.is_some() {
-            Some(Duration::from_millis(
-                configuration
-                    .application
-                    .healthcachevalidityms
-                    .unwrap()
-                    .into(),
-            ))
-        } else {
-            None
-        };
+    let health_cache_validity_ms = configuration
+        .application
+        .healthcachevalidityms
+        .map(|ms| Duration::from_millis(ms.into()));
+    let smtp_credentials = get_smtp_credentials(
+        &configuration.application.smtp.relay.credentials.username,
+        &configuration.application.smtp.relay.credentials.password,
+    );
+    let smtp_pool = new_smtp_relay_mailer(
+        &configuration.application.smtp.relay.address,
+        smtp_credentials,
+        configuration.application.smtp.relay.port,
+    )?;
+    tracing::info!(
+        "The result of testing connection is: {:?}",
+        smtp_pool.test_connection()
+    );
+    // Err(lettre::transport::smtp::Error { kind: Connection, source: Failure(Ssl(Error { code: ErrorCode(1), cause: Some(Ssl(ErrorStack([Error { code: 167772427, library: \"SSL routines\", function: \"tls_validate_record_header\", reason: \"wrong version number\", file: \"ssl/record/methods/tlsany_meth.c\", line: 80 }]))) }, X509VerifyResult { code: 0, error: \"ok\" })) })"
+    /*
+    let email_builder = new_email_builder(
+        Some(&configuration.application.smtp.name),
+        &configuration.application.smtp.from,
+        &configuration.application.smtp.reply_to,
+    )?;
+    send_email(
+        Some("Dr. Conopoima"),
+        "email@example.com",
+        email_builder,
+        &smtp_pool,
+        "Test Rust SMTP",
+        "Hello, this is a test email from Rust!",
+    )?;
+    */
     // Run server on TcpListener
     let (server1, server2): (Server, Option<Server>) = run(
         listener,
         postgres_connection,
-        None,
+        Some(smtp_pool),
         admin_bind_address,
         health_cache_validity_ms,
     )?;

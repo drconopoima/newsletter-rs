@@ -13,6 +13,7 @@ use tokio_postgres::{NoTls, SimpleQueryMessage};
 use tracing::warn;
 use uuid::Uuid;
 
+#[tracing::instrument(name = "Get Postgres TLS Connector.")]
 pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector, Error> {
     Ok(if let Some(cert) = cacertificates {
         let mut connector = TlsConnector::builder();

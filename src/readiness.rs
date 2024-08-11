@@ -74,6 +74,7 @@ pub async fn probe_readiness(
             STATUS_WARN,
             &now_string,
             postgres_client_error,
+            None,
         );
     }
     let postgres_client = optional_postgres_client.unwrap();
@@ -99,6 +100,7 @@ pub async fn probe_readiness(
             STATUS_WARN,
             &now_string,
             statement_read_error,
+            None,
         );
     }
     let read_error = "DB read error.";
@@ -116,6 +118,7 @@ pub async fn probe_readiness(
             STATUS_WARN,
             &now_string,
             read_error,
+            None,
         );
     }
     let row_results = optional_row.unwrap();
@@ -288,6 +291,7 @@ pub fn build_healthcheck_response(
     global_status: &str,
     now_string: &str,
     output: &str,
+    smtp_check: Option<SmtpCheck>,
 ) -> HealthResponse {
     let postgres_read = build_postgres_read_response(postgres_read_status, None, None, output);
     let postgres_write =
@@ -298,7 +302,7 @@ pub fn build_healthcheck_response(
         "",
         postgres_read,
         postgres_write,
-        None,
+        smtp_check,
     )
 }
 
