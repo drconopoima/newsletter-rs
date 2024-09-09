@@ -51,3 +51,9 @@ quickcheck_macros = "^1"
 
 [patch.crates-io]
 config = { git = 'https://github.com/mehcode/config-rs.git', rev = 'c4778596cd3f3b1001ca35bd6960fc1b139746ea' }
+
+# [profile.release]
+# lto = true
+# codegen-units = 1
+# panic = "abort"
+
