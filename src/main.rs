@@ -12,7 +12,6 @@ use newsletter_rs::{
     telemetry,
 };
 use std::net::TcpListener;
-use std::str::FromStr;
 use std::time::Duration;
 
 #[actix_web::main]
@@ -59,7 +58,7 @@ async fn main() -> Result<()> {
         port: configuration.database.port,
         host: configuration.database.host.to_owned(),
         username: configuration.database.username.to_owned(),
-        password: CensoredString::from_str(configuration.database.password.as_ref()).unwrap(),
+        password: configuration.database.password.to_owned(),
         database: Some(database_name.to_owned()),
         migration: migration_settings,
         ssl: SslSettings {

@@ -1,4 +1,3 @@
-use crate::censoredstring::CensoredString;
 use anyhow::{Context, Error, Result};
 use config::{Config, Environment, File, FileFormat};
 use serde_aux::field_attributes::{
@@ -44,7 +43,7 @@ pub struct DatabaseSettings {
     pub port: u16,
     pub host: String,
     pub username: String,
-    pub password: CensoredString,
+    pub password: String,
     pub database: Option<String>,
     pub migration: Option<MigrationSettings>,
     pub ssl: SslSettings,
