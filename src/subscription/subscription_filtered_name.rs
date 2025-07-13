@@ -15,7 +15,7 @@ impl SubscriptionFilteredName {
         let trimmed_name = name.trim();
         let is_empty_or_whitespace = trimmed_name.is_empty();
         if is_empty_or_whitespace {
-            return Err(format!("Provided name '{}' appears to be blank or empty which is invalid. Please fill out a name to subscribe", name));
+            return Err(format!("Provided name \"{name}\" appears to be blank or empty which is invalid. Please fill out a name to subscribe"));
         }
 
         let forbidden_chars: HashSet<&char> = ['/', '(', ')', '"', '<', '>', '\\', '{', '}']
@@ -24,12 +24,9 @@ impl SubscriptionFilteredName {
         let contains_forbidden_chars = trimmed_name.chars().any(|g| forbidden_chars.contains(&g));
 
         if contains_forbidden_chars {
-            return Err(format!("Provided name '{}' must not contain one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe.", trimmed_name));
+            return Err(format!("Provided name \"{trimmed_name}\" must not contain one or more characters from the following forbidden list '/()\"<>\\{{}}'. Please remove these characters to subscribe."));
         }
-        let name_middle_trim = match Self::process_name(trimmed_name, None) {
-            Ok(name) => name,
-            Err(msg) => return Err(msg),
-        };
+        let name_middle_trim = Self::process_name(trimmed_name, None)?;
 
         Ok(Self(name_middle_trim.to_owned()))
     }

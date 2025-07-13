@@ -1,6 +1,6 @@
 [package]
 name = "newsletter-rs"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Luis Jesus Diaz Manzo <luis@drconopoima.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -19,14 +19,14 @@ name="newsletter-rs"
 actix-web = { version = "^4" }
 serde = { version = "^1" }
 tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
-config = { version = "^0.14", default-features = false, features = ["yaml"] }
+config = { version = "^0.15", default-features = false, features = ["yaml"] }
 futures = { version = "^0.3" }
 tokio-postgres = { version = "^0.7", features=[ "with-uuid-1" , "with-time-0_3" ] }
 uuid = { version = "^1", default-features = false, features = ["v7"] }
 regex = { version = "^1" }
 deadpool-postgres = { version = "^0.14" }
 tracing = { version = "^0.1", features = [ "log" ] }
-md5 = { version = "^0.7" }
+md5 = { version = "^0.8" }
 time = { version = "^0.3", features=["formatting"] }
 tracing-subscriber = { version = "^0.3", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "^0.3"
@@ -44,17 +44,16 @@ arbtest = { version = "^0.3" }
 reqwest = { version = "^0.12", features = ["json"] }
 uuid = { version = "^1", default-features = false, features = ["v7", "v4"] }
 serde_urlencoded = "^0.7"
-claims = "^0.7"
+claims = "^0.8"
 rand = "^0.8"
 fake = "^2"
 quickcheck = "^1"
 quickcheck_macros = "^1"
 
-[patch.crates-io]
-config = { git = 'https://github.com/mehcode/config-rs.git', rev = 'c4778596cd3f3b1001ca35bd6960fc1b139746ea' }
+# [patch.crates-io]
+# config = { git = 'https://github.com/mehcode/config-rs.git', rev = 'c4778596cd3f3b1001ca35bd6960fc1b139746ea' }
 
 # [profile.release]
 # lto = true
 # codegen-units = 1
 # panic = "abort"
-

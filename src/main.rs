@@ -10,9 +10,9 @@ use newsletter_rs::{
     startup::run,
     telemetry,
 };
+use secrecy::SecretString;
 use std::net::TcpListener;
 use std::time::Duration;
-use secrecy::SecretString;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -31,9 +31,7 @@ async fn main() -> Result<()> {
             config_file, error
         )
     });
-    let connection_string = SecretString::from(
-        configuration.database.connection_string()
-    );
+    let connection_string = SecretString::from(configuration.database.connection_string());
     let database_name = match configuration.database.database.as_ref() {
         Some(database_name) => database_name.to_owned(),
         _ => {

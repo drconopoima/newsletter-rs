@@ -16,15 +16,13 @@ impl SubscriptionFilteredEmail {
         let is_empty_or_whitespace = lowercase_email.is_empty();
         if is_empty_or_whitespace {
             return Err(format!(
-                "Provided email '{}' appears to be blank or empty which is invalid.",
-                email
+                "Provided email \"{email}\" appears to be blank or empty which is invalid."
             ));
         }
         let contains_intermediate_whitespace = Regex::new(r"^\s+|\s+$|\s+").unwrap();
         if contains_intermediate_whitespace.is_match(&lowercase_email) {
             return Err(format!(
-                "Provided email '{}' appears to contain intermediate whitespace which is invalid.",
-                email
+                "Provided email \"{email}\" appears to contain intermediate whitespace which is invalid."
             ));
         }
         // MDN web docs provide a regular expression matching emails
@@ -32,8 +30,7 @@ impl SubscriptionFilteredEmail {
         let email_format = Regex::new(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$").unwrap();
         if !email_format.is_match(&lowercase_email) {
             return Err(format!(
-                "Provided email '{}' has invalid formatting.",
-                email
+                "Provided email \"{email}\" has invalid formatting."
             ));
         }
         Ok(Self(lowercase_email.to_owned()))

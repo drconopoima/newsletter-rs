@@ -7,10 +7,7 @@ use tokio_postgres::Statement;
 use uuid::{NoContext, Timestamp, Uuid};
 
 fn parse_subscription_form_data(form: FormData) -> Result<SubscriptionFormData, String> {
-    match SubscriptionFormData::try_from(form) {
-        Ok(form_data) => Ok(form_data),
-        Err(error) => Err(error),
-    }
+    SubscriptionFormData::try_from(form)
 }
 
 #[tracing::instrument(

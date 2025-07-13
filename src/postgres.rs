@@ -5,13 +5,13 @@ use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, Recycli
 use md5;
 use native_tls::{Certificate, TlsConnector};
 use postgres_native_tls::MakeTlsConnector;
+use secrecy::{ExposeSecret, SecretString};
 use std::fs::{read_dir, File};
 use std::io::{BufReader, Read};
 use std::str::FromStr;
 use tokio_postgres::{NoTls, SimpleQueryMessage};
-use tracing::warn;
+use tracing::{info, warn};
 use uuid::Uuid;
-use secrecy::{SecretString,ExposeSecret};
 
 pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector, Error> {
     Ok(if let Some(cert) = cacertificates {
@@ -78,9 +78,8 @@ pub async fn check_database_exists(
     database_name: &str,
     database_settings: &DatabaseSettings,
 ) -> (bool, Object) {
-    let connection_string_without_database = SecretString::from(
-        database_settings.connection_string_without_database()
-    );
+    let connection_string_without_database =
+        SecretString::from(database_settings.connection_string_without_database());
     database_settings.connection_string_without_database_censored();
     let postgres_pool_without_database: Pool = generate_connection_pool(
         &connection_string_without_database,
@@ -97,10 +96,8 @@ pub async fn check_database_exists(
                 error
             )
         });
-    let check_database_query = format!(
-        "SELECT 1 FROM pg_database WHERE datname = '{}'",
-        database_name
-    );
+    let check_database_query =
+        format!("SELECT 1 FROM pg_database WHERE datname = '{database_name}'");
     let database_existence_result = run_simple_query(&postgres_client, &check_database_query)
         .await
         .unwrap_or_else(|error| {
@@ -109,8 +106,9 @@ pub async fn check_database_exists(
                 check_database_query, error
             )
         });
-    if let SimpleQueryMessage::CommandComplete(number_rows) = database_existence_result[0] {
-        if number_rows == 0 {
+    if let SimpleQueryMessage::CommandComplete(number_rows) = &database_existence_result[1] {
+        info!("{}::postgres::check_database_exists: Schema '{database_name}' was not found. Check pg_database query returned {number_rows} rows",env!("CARGO_PKG_NAME"));
+        if *number_rows == 0 {
             return (false, postgres_client);
         }
     }
@@ -124,13 +122,14 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
     if exists {
         database_settings.database = Some(database_name.to_owned());
     } else {
-        let create_database_query = format!("CREATE DATABASE \"{}\"", database_name);
-        run_simple_query(&postgres_client, &create_database_query)
-            .await
-            .expect("Failed to create database");
+        let _ = run_simple_query(
+            &postgres_client,
+            &format!("CREATE DATABASE \"{database_name}\""),
+        )
+        .await
+        .expect("Failed to create database");
     }
-    let connection_string =
-        SecretString::from(database_settings.connection_string());
+    let connection_string = SecretString::from(database_settings.connection_string());
     generate_connection_pool(
         &connection_string,
         database_settings.ssl.tls,
@@ -201,7 +200,7 @@ pub async fn migrate_database(mut database_settings: DatabaseSettings) -> Pool {
         });
         let migration_file_contents = String::from_utf8_lossy(&buffer).to_string();
         let md5_script_digest = md5::compute(&migration_file_contents);
-        let md5_script_string = format!("{:x}", md5_script_digest);
+        let md5_script_string = format!("{md5_script_digest:x}");
         let script_md5_uuid = Uuid::parse_str(&md5_script_string).unwrap();
         let migration_run_result = &postgres_client
             .query_opt(&check_migration_statement, &[&script_md5_uuid])

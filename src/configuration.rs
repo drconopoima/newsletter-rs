@@ -1,11 +1,11 @@
 use anyhow::{Context, Error, Result};
 use config::{Config, Environment, File, FileFormat};
+use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::{
     deserialize_number_from_string, deserialize_option_number_from_string,
 };
 use std::fmt;
 use tracing::info;
-use secrecy::{ExposeSecret, SecretString};
 
 pub static CONFIGURATION_SUBDIRECTORY: &str = "configuration";
 pub static CENSOR_STRING: &str = "***REMOVED***";
@@ -73,7 +73,10 @@ impl DatabaseSettings {
         if self.database.is_none() {
             format!(
                 "postgresql://{}:{}@{}:{}/",
-                self.username, self.password.expose_secret(), self.host, self.port
+                self.username,
+                self.password.expose_secret(),
+                self.host,
+                self.port
             )
         } else {
             format!(
@@ -89,7 +92,10 @@ impl DatabaseSettings {
     pub fn connection_string_without_database(&self) -> String {
         format!(
             "postgresql://{}:{}@{}:{}/",
-            self.username, self.password.expose_secret(), self.host, self.port
+            self.username,
+            self.password.expose_secret(),
+            self.host,
+            self.port
         )
     }
     pub fn connection_string_censored(&self) -> String {
@@ -121,9 +127,8 @@ impl DatabaseSettings {
 pub fn get_configuration(filename: &str) -> Result<Settings, Error> {
     let environment = std::env::var("APP__ENVIRONMENT").unwrap_or_else(|_| "local".to_owned());
     // Initialize configuration reader
-    let default_configuration_file = &*format!("{}/{}", CONFIGURATION_SUBDIRECTORY, filename);
-    let environment_configuration_file =
-        &*format!("{}/{}", CONFIGURATION_SUBDIRECTORY, environment);
+    let default_configuration_file = &*format!("{CONFIGURATION_SUBDIRECTORY}/{filename}");
+    let environment_configuration_file = &*format!("{CONFIGURATION_SUBDIRECTORY}/{environment}");
     let builder = Config::builder()
         .add_source(File::new(default_configuration_file, FileFormat::Yaml))
         .add_source(File::new(environment_configuration_file,FileFormat::Yaml))
@@ -131,10 +136,8 @@ pub fn get_configuration(filename: &str) -> Result<Settings, Error> {
         .build()
         .with_context(|| {
             format!(
-                "{}::configuration::get_configuration: Failed to build configuration from sources: '{}' and '{}'",
-                env!("CARGO_PKG_NAME"),
-                default_configuration_file,
-                environment_configuration_file
+                "{}::configuration::get_configuration: Failed to build configuration from sources: \"{default_configuration_file}\" and \"{environment_configuration_file}\"",
+                env!("CARGO_PKG_NAME")
             )
         })?;
     info!("Successfully built configuration: '{:?}'", builder);
