@@ -1,7 +1,7 @@
-use crate::censoredstring::CensoredString;
 use anyhow::Result;
 use core::convert::TryInto;
 use lettre::{message::MessageBuilder, transport::smtp, Message, SmtpTransport, Transport};
+use secrecy::{ExposeSecret, SecretString};
 use std::str::FromStr;
 
 #[tracing::instrument(name = "Generating email builder.")]
@@ -35,11 +35,11 @@ pub fn new_smtp_relay_mailer(
 #[tracing::instrument(name = "Generating SMTP Credentials.")]
 pub fn get_smtp_credentials(
     username: &str,
-    password: &CensoredString,
+    password: &SecretString,
 ) -> smtp::authentication::Credentials {
     smtp::authentication::Credentials::new(
         std::string::String::from_str(username).unwrap(),
-        std::string::String::from_str(password).unwrap(),
+        std::string::String::from_str(password.expose_secret()).unwrap(),
     )
 }
 
@@ -63,9 +63,9 @@ pub fn send_email(
 
 pub fn get_mailbox(name: Option<&str>, address: &str) -> String {
     let receiver = if let Some(inner_name) = name {
-        format! {"{} ", inner_name}
+        format! {"{inner_name} "}
     } else {
         "".to_owned()
     };
-    format! {"{}<{}>",receiver,address}
+    format! {"{receiver}<{address}>"}
 }

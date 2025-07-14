@@ -7,9 +7,7 @@ use newsletter_rs::{
         get_configuration, DatabaseSettings, MigrationSettings, Settings, SslSettings,
     },
     postgres::{check_database_exists, generate_connection_pool, migrate_database},
-    smtp_email_sender::{
-        get_smtp_credentials, new_email_builder, new_smtp_relay_mailer, send_email,
-    },
+    smtp_email_sender::{get_smtp_credentials, new_smtp_relay_mailer},
     startup::run,
     telemetry,
 };

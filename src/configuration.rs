@@ -144,7 +144,7 @@ pub struct SmtpRelaySettings {
 #[derive(serde::Deserialize)]
 pub struct SmtpRelayCredentialsSettings {
     pub username: String,
-    pub password: CensoredString,
+    pub password: SecretString,
 }
 
 // Read top-level configuration file with extension YAML...
@@ -163,5 +163,6 @@ pub fn get_configuration(filename: &str) -> Result<Settings, ConfigError> {
         )
         .build()?;
     info!("Successfully built configuration: '{:?}'", builder);
+    // Convert into Result<Settings, ConfigError>
     builder.try_deserialize::<Settings>()
 }
