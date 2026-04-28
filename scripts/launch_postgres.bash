@@ -10,7 +10,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.8.1"
+readonly SCRIPT_VERSION="0.9.0"
 
 ## Section Help
 function print_help {
@@ -95,12 +95,18 @@ readonly DB_HOST=${POSTGRES_HOST:='localhost'}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
 if [[ -z ${SKIP_CONTAINER+undeclared} ]]; then
-    SKIP_CONTAINER='0'
+    SKIP_CONTAINER=0
 fi
 if [[ -z "${SKIP_CONTAINER-}" ]]; then
     echo "Constant \$SKIP_CONTAINER should not be null" >&2 && exit 1
-elif [[ ${!SKIP_CONTAINER-x} == x && ${!SKIP_CONTAINER-y} == y && "${SKIP_CONTAINER}" != 0 ]]; then
+fi
+if [[ "${SKIP_CONTAINER}" =~ ^([1]|true|yes)$ ]]; then
         SKIP_CONTAINER=1
+elif [[ "${SKIP_CONTAINER}" =~ ^([0]|false|no)$ ]]; then
+        SKIP_CONTAINER=0
+else
+    echo "[ERROR] SKIP_CONTAINER must be 0 or 1, got '$SKIP_CONTAINER'" >&2
+    exit 1
 fi
 readonly SKIP_CONTAINER
 
@@ -111,14 +117,23 @@ if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
         printf "Launching {podman/docker} postgres container at *:%s with user=%s and database=%s\n" "${DB_PORT}" "${DB_USER}" "${DB_NAME}"
         printf "When ready, clean-up by running:\n"
         printf "\t {podman/docker} stop %s\n" "${CONTAINER_NAME}"
-        containertech create --rm --name "${CONTAINER_NAME}" \
-        -e "POSTGRES_USER=${DB_USER}" \
-        -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
-        -p "${DB_PORT}":5432 \
-        --health-cmd pg_isready --health-interval 10s \
-        --health-timeout 5s --health-retries 5 \
-        "${DB_REGISTRY}:${DB_VERSION}" \
-        postgres -N 1000 1>/dev/null
+        if ! containertech image inspect "${DB_REGISTRY}:${DB_VERSION}" >/dev/null 2>&1; then
+            echo "[INFO] Pulling image ${DB_REGISTRY}:${DB_VERSION}..."
+            containertech pull "${DB_REGISTRY}:${DB_VERSION}"
+        fi
+
+        if ! containertech create --rm --name "${CONTAINER_NAME}" \
+          -e "POSTGRES_USER=${DB_USER}" \
+          -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+          -p "${DB_PORT}":5432 \
+          --health-cmd pg_isready --health-interval 10s \
+          --health-timeout 5s --health-retries 5 \
+          "${DB_REGISTRY}:${DB_VERSION}" \
+          postgres -N 1000 1>/dev/null; then
+            echo "[ERROR] Failed to create postgres container" >&2
+            exit 1
+        fi
+
         containertech start "${CONTAINER_NAME}" 1>/dev/null
         # ^ Increased maximum number of connections for testing purposes`
     else
