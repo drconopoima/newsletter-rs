@@ -105,7 +105,7 @@ if [[ "${SKIP_CONTAINER}" =~ ^([1]|true|yes)$ ]]; then
 elif [[ "${SKIP_CONTAINER}" =~ ^([0]|false|no)$ ]]; then
         SKIP_CONTAINER=0
 else
-    echo "[ERROR] SKIP_CONTAINER must be 0 or 1, got '$SKIP_CONTAINER'" >&2
+    echo "[ERROR] SKIP_CONTAINER must be one of the following values: 0, 1, true, false, yes or no. Got '$SKIP_CONTAINER'" >&2
     exit 1
 fi
 readonly SKIP_CONTAINER
@@ -131,7 +131,7 @@ if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
           "${DB_REGISTRY}:${DB_VERSION}" \
           postgres -N 1000 1>/dev/null; then
             echo "[ERROR] Failed to create postgres container" >&2
-            exit 1
+            exit 3
         fi
 
         containertech start "${CONTAINER_NAME}" 1>/dev/null
@@ -171,7 +171,7 @@ cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
 find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script; do
     if command -v md5sum 1>/dev/null 2>&1; then
         md5="$(md5sum "${script}" | awk '{ print $1 }')";
-        elif command -v md5 1>/dev/null 2>&1; then
+    elif command -v md5 1>/dev/null 2>&1; then
         md5="$(md5 "${script}")";
     fi
     sqlfilename=$(basename "${script}");
