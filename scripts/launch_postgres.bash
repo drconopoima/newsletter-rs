@@ -175,7 +175,10 @@ find . -type f -name "*.sql" -print0 | sort -z | while IFS= read -r -d '' script
         md5="$(md5 "${script}")";
     fi
     sqlfilename=$(basename "${script}");
-    if [[ "$( psql -t -h $\"${DB_HOST}\" -p \"${DB_PORT}\" -U \"${DB_USER}\" -d \"${DB_NAME}\" -v PGPASSFILE="${PGPASSFILE}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" 2>/dev/null | awk '{ print $1 }')" -eq 1 ]]; then
+    # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
+    #   - `awk` outputs `"1"` or empty string (never non-numeric)
+    #   - `[[ "" == "1" ]]` is safe in *all* Bash versions (no numeric coercion)
+    if [[ "$( psql -t -h $\"${DB_HOST}\" -p \"${DB_PORT}\" -U \"${DB_USER}\" -d \"${DB_NAME}\" -v PGPASSFILE="${PGPASSFILE}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" 2>/dev/null | awk '{ print $1 }')" == "1" ]]; then
         printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
         continue
     fi
