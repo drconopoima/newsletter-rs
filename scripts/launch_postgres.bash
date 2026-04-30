@@ -179,7 +179,7 @@ migrate_scripts() {
         if command -v md5sum 1>/dev/null 2>&1; then
             md5="$(md5sum "${script}" | awk '{ print $1 }')";
         elif command -v md5 1>/dev/null 2>&1; then
-            md5="$(md5 "${script}")";
+            md5="$(md5 -q "${script}")";
         fi
         sqlfilename=$(basename "${script}");
         # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
