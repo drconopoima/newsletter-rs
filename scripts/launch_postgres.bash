@@ -162,6 +162,9 @@ until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"; do
     sleep "${wait_time}"
     wait_time=$(( wait_time * 2 ))
 done
+until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "postgres" -c "SELECT 1" >/dev/null 2>&1; do
+    sleep 1
+done
 printf "[PASS] Postgres is running and ready\n"
 printf "Creating Database Newsletter if not available\n"
 echo "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" |  psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -v PGPASSFILE="${PGPASSFILE}" -w
