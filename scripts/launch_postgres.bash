@@ -152,7 +152,8 @@ fi
 # Create temporary password file
 readonly PGPASSFILE='/tmp/launch_postgres_pgpass'
 export PGPASSFILE
-echo -n "${DB_HOST}:${DB_PORT}:*:${DB_USER}:${POSTGRES_PASSWORD}" | tee "${PGPASSFILE}" >/dev/null
+escaped_password="${POSTGRES_PASSWORD//:/\\:}"
+printf '%s:%s:*:%s:%s\n' "${DB_HOST}" "${DB_PORT}" "${DB_USER}" "${escaped_password}" >"${PGPASSFILE}"
 chmod 600 "${PGPASSFILE}"
 trap 'rm '"${PGPASSFILE}"'' EXIT
 # Ping until Postgres startup is validated.
