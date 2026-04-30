@@ -172,7 +172,7 @@ cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
 migrate_scripts() {
     local script
     for script in $(find . -type f -name "*.sql" -print0 | sort -z | tr -d '\n' | tr '\0' '\n'); do
-        [ -e "${script}" ] || continue # skip over truncated filenames due to newlines
+        [ -e "${script}" ] || continue # skip over non-existent filenames
         if command -v md5sum 1>/dev/null 2>&1; then
             md5="$(md5sum "${script}" | awk '{ print $1 }')";
         elif command -v md5 1>/dev/null 2>&1; then
