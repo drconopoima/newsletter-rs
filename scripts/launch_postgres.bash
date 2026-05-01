@@ -196,10 +196,10 @@ migrate_scripts() {
             md5="$(md5 -q "${script}")";
         fi
         sqlfilename=$(basename "${script}");
+	sqlfilename_escaped="${sqlfilename//\'/\'\'}"
         # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
         #   - `awk` outputs `"1"` or empty string (never non-numeric)
         #   - `[[ "" == "1" ]]` is safe in *all* Bash versions (no numeric coercion)
-        sqlfilename_escaped="${sqlfilename//\'/\'\'}"
         if [[ "$( psql --set ON_ERROR_STOP=1 -t -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" --set PGPASSFILE="${PGPASSFILE}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename = CAST('${sqlfilename_escaped}' AS text)" 2>/dev/null | awk '{ print $1 }')" == "1" ]]; then
             printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
             continue
@@ -220,23 +220,15 @@ migrate_scripts() {
                 exit 4
             fi
             psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}" && \
-            psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename}', '${md5}' )" && \
+            psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
             printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
             shopt -s lastpipe
             set +Ee
-            psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 | rollbackoutput=$(</dev/stdin)
-            returncode="$?"
-            shopt -u lastpipe
-            set -Ee
-            if [[ returncode -eq 0 ]]; then
-                printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
-            else
-                printf "[FAIL] Script '%s' failed with return code '%s'\n" "${sqlfilename}" "${returncode}";
-                printf '%s\n' "${rollbackoutput}"
-                exit 4
-            fi
+            psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 && \
+            psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
+	    printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
     done
 }
