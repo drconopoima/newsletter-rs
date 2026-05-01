@@ -44,7 +44,7 @@ while test $# -gt 0; do
             exit 0
         ;;
         *)
-            echo "[ERROR] Invalid option $*"
+            printf "[ERROR] Invalid option %s" "$*"
             print_help
             exit 2
     esac
@@ -60,8 +60,7 @@ printf "%s (v%s, newsletter-rs v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}" "${N
 
 ## Section validate dependencies
 if ! command -v psql 1>/dev/null 2>&1; then
-echo >&2 "[ERROR] psql (PostgreSQL client) is not installed."
-exit 1
+    printf "[ERROR] psql (PostgreSQL client) is not installed." >&2 && exit 1
 fi
 if command -v podman 1>/dev/null 2>&1; then
 function containertech {
@@ -72,8 +71,7 @@ function containertech {
     docker "$@"
 }
 else
-echo >&2 "[ERROR] No container library (Podman or Docker) is installed."
-exit 1
+    printf "[ERROR] No container library (Podman or Docker) is installed." >&2 && exit 1
 fi
 readonly -f containertech
 export containertech
@@ -132,8 +130,7 @@ if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
           --health-timeout 5s --health-retries 5 \
           "${DB_REGISTRY}:${DB_VERSION}" \
           postgres -N "${POSTGRES_MAX_CONNECTIONS}" 1>/dev/null; then
-            echo "[ERROR] Failed to create postgres container" >&2
-            exit 3
+            printf "[ERROR] Failed to create postgres container" >&2 && exit 3
         fi
 
         containertech start "${CONTAINER_NAME}" 1>/dev/null
@@ -174,7 +171,7 @@ until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"; do
 done
 wait_total=0
 max_wait=10
-until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "postgres" -c "SELECT 1" >/dev/null 2>&1; do
+until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d postgres -c "SELECT 1" >/dev/null 2>&1; do
     sleep 1
     wait_total=$(( wait_total + 1 ))
     if [[ "${wait_total}" -gt "${max_wait}" ]]; then
@@ -202,7 +199,8 @@ migrate_scripts() {
         # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
         #   - `awk` outputs `"1"` or empty string (never non-numeric)
         #   - `[[ "" == "1" ]]` is safe in *all* Bash versions (no numeric coercion)
-        if [[ "$( psql -t -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename='${sqlfilename}' LIMIT 1" 2>/dev/null | awk '{ print $1 }')" == "1" ]]; then
+        sqlfilename_escaped="${sqlfilename//\'/\'\'}"
+        if [[ "$( psql --set ON_ERROR_STOP=1 -t -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" --set PGPASSFILE="${PGPASSFILE}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename = CAST('${sqlfilename_escaped}' AS text)" 2>/dev/null | awk '{ print $1 }')" == "1" ]]; then
             printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
             continue
         fi

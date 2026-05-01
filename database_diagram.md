@@ -16,9 +16,9 @@
 │  _initialization_migrations     │
 ├─────────────────────────────────┤
 │ version: serial (PK)            │
-│ filename: text                  │
+│ filename: text UNIQUE           │
 │ installed_on: timestamptz       │
-| md5_hash: uuid                  |
+| md5_hash: uuid UNIQUE           |
 └─────────────────────────────────┘
 ```
 
