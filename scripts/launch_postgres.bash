@@ -183,9 +183,9 @@ printf "Creating Database Newsletter if not available\n"
 printf '%s\n' "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" |  psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -v PGPASSFILE="${PGPASSFILE}" -w
 printf "[PASS] Database '%s' ready to use\n" "${DB_NAME}"
 
-cd "${NEWSLETTER_RS_PATH}/migrations" || exit;
+cd "${NEWSLETTER_RS_PATH}/migrations" || { printf '%s\n' "Couldn't set directory '${NEWSLETTER_RS_PATH}/migrations' failed"; exit 1; };
 
-migrate_scripts() {
+function migrate_scripts {
     local script
     for script in $(find . -type f -name "*.sql" -print0 | sort -z | tr -d '\n' | tr '\0' '\n'); do
         [ -e "${script}" ] || continue # skip over non-existent filenames
@@ -204,10 +204,10 @@ migrate_scripts() {
             continue
         fi
         printf "Running migration script '%s'...\n" "${sqlfilename}"
-        if grep '^COMMIT;$' "${script}" 1>/dev/null 2>&1; then
+        if grep -q '^COMMIT\;$' "${script}" 1>/dev/null 2>&1; then
             shopt -s lastpipe
             set +Ee
-            sed 's/^COMMIT;/ROLLBACK;/g' "${script}" |  psql -v ON_ERROR_STOP=1 --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
+            sed 's/^COMMIT\;/ROLLBACK;/g' "${script}" | psql -v ON_ERROR_STOP=1 --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
             returncode="$?"
             shopt -u lastpipe
             set -Ee
@@ -218,15 +218,15 @@ migrate_scripts() {
                 printf '%s\n' "${rollbackoutput}"
                 exit 4
             fi
-            psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}" && \
-            psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}" && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
             printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
             shopt -s lastpipe
             set +Ee
-            psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 && \
-            psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
+            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
     done
