@@ -196,7 +196,7 @@ migrate_scripts() {
             md5="$(md5 -q "${script}")";
         fi
         sqlfilename=$(basename "${script}");
-	sqlfilename_escaped="${sqlfilename//\'/\'\'}"
+        sqlfilename_escaped="${sqlfilename//\'/\'\'}"
         # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
         #   - `awk` outputs `"1"` or empty string (never non-numeric)
         #   - `[[ "" == "1" ]]` is safe in *all* Bash versions (no numeric coercion)
@@ -228,7 +228,7 @@ migrate_scripts() {
             set +Ee
             psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 && \
             psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
-	    printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
+            printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
     done
 }
@@ -236,4 +236,3 @@ migrate_scripts() {
 migrate_scripts
 
 printf '%s\n' "[PASS] All migration scripts have been run, ready to go!"
-
