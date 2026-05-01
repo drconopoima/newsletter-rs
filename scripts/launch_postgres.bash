@@ -74,7 +74,6 @@ else
     printf "[ERROR] No container library (Podman or Docker) is installed." >&2 && exit 1
 fi
 readonly -f containertech
-export containertech
 
 ## Section Global Variables
 # Check if a custom user has been set, otherwise default to 'postgres'
@@ -171,7 +170,7 @@ until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"; do
 done
 wait_total=0
 max_wait=10
-until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d postgres -c "SELECT 1" >/dev/null 2>&1; do
+until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -c "SELECT 1" >/dev/null 2>&1; do
     sleep 1
     wait_total=$(( wait_total + 1 ))
     if [[ "${wait_total}" -gt "${max_wait}" ]]; then
