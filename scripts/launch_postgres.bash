@@ -205,11 +205,9 @@ function migrate_scripts {
         fi
         printf "Running migration script '%s'...\n" "${sqlfilename}"
         if grep -q '^COMMIT\;$' "${script}" 1>/dev/null 2>&1; then
-            shopt -s lastpipe
             set +Ee
             sed 's/^COMMIT\;/ROLLBACK;/g' "${script}" | psql -v ON_ERROR_STOP=1 --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
             returncode="$?"
-            shopt -u lastpipe
             set -Ee
             if [[ returncode -eq 0 ]]; then
                 printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}";
@@ -223,7 +221,6 @@ function migrate_scripts {
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
             printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
-            shopt -s lastpipe
             set +Ee
             psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 && \
             psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
