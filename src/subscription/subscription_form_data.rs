@@ -11,7 +11,7 @@ impl TryFrom<FormData> for SubscriptionFormData {
     type Error = String;
 
     fn try_from(form: FormData) -> Result<Self, Self::Error> {
-        let name = SubscriptionFilteredName::new(&form.name)?;
+        let name = SubscriptionFilteredName::new(&form.name).unwrap();
         let email = SubscriptionFilteredEmail::new(&form.email)?;
         Ok(Self { name, email })
     }

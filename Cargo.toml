@@ -37,6 +37,8 @@ serde-aux = { version = "^4", default-features = false, features = [] }
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
 secrecy = { "version" = "^0.10", features = ["serde"] }
+unicode-normalization = "^0.1"
+unicode-segmentation = "^1"
 
 [dev-dependencies]
 arbitrary = { version = "^1" }
