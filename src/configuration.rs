@@ -1,6 +1,6 @@
+use crate::censoredstring::{CensoredString, ZeroizingString, CENSOR_STRING};
 use anyhow::{Context, Error, Result};
 use config::{Config, Environment, File, FileFormat};
-use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::{
     deserialize_number_from_string, deserialize_option_number_from_string,
 };
@@ -8,7 +8,6 @@ use std::fmt;
 use tracing::info;
 
 pub static CONFIGURATION_SUBDIRECTORY: &str = "configuration";
-pub static CENSOR_STRING: &str = "***REMOVED***";
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
@@ -45,8 +44,8 @@ pub struct DatabaseSettings {
     pub port: u16,
     pub host: String,
     pub username: String,
-    pub password: SecretString,
-    pub database: Option<String>,
+    pub password: ZeroizingString,
+    pub database: Option<CensoredString>,
     pub migration: Option<MigrationSettings>,
     pub ssl: SslSettings,
 }
@@ -70,55 +69,45 @@ impl fmt::Debug for DatabaseSettings {
 }
 impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
-        if self.database.is_none() {
-            format!(
-                "postgresql://{}:{}@{}:{}/",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port
-            )
-        } else {
+        if let Some(database) = &self.database {
             format!(
                 "postgresql://{}:{}@{}:{}/{}",
                 self.username,
-                self.password.expose_secret(),
+                &*self.password,
                 self.host,
                 self.port,
-                self.database.as_ref().unwrap()
+                database.as_str()
+            )
+        } else {
+            format!(
+                "postgresql://{}:{}@{}:{}/",
+                self.username, &*self.password, self.host, self.port
             )
         }
     }
     pub fn connection_string_without_database(&self) -> String {
         format!(
             "postgresql://{}:{}@{}:{}/",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port
+            self.username, &*self.password, self.host, self.port
         )
     }
     pub fn connection_string_censored(&self) -> String {
         if self.database.is_none() {
             format!(
                 "postgresql://{}:{}@{}:{}/",
-                self.username, &CENSOR_STRING, self.host, self.port
+                self.username, CENSOR_STRING, self.host, self.port
             )
         } else {
             format!(
                 "postgresql://{}:{}@{}:{}/{}",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port,
-                self.database.as_ref().unwrap()
+                self.username, CENSOR_STRING, self.host, self.port, CENSOR_STRING
             )
         }
     }
     pub fn connection_string_without_database_censored(&self) -> String {
         format!(
             "postgresql://{}:{}@{}:{}/",
-            self.username, &CENSOR_STRING, self.host, self.port
+            self.username, CENSOR_STRING, self.host, self.port
         )
     }
 }

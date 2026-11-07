@@ -72,7 +72,7 @@ impl SubscriptionFilteredName {
             if allowed_non_consecutive_special_characters.contains(&current)
                 && previous.eq(&current)
             {
-                return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", &name));
+                return Err(format!("Provided name '{}' must not contain special characters from set '\',;.:*+-&%¨`´~#^%@?¿|!¡=' repeated in close succession.", name));
             }
             previous = current;
             idx += 1

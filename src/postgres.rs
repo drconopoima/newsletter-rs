@@ -1,3 +1,4 @@
+use crate::censoredstring::CensoredString;
 use crate::configuration::DatabaseSettings;
 use actix_web::{body::MessageBody, web::Bytes};
 use anyhow::{Context, Error, Result};
@@ -5,7 +6,6 @@ use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError, Recycli
 use md5;
 use native_tls::{Certificate, TlsConnector};
 use postgres_native_tls::MakeTlsConnector;
-use secrecy::{ExposeSecret, SecretString};
 use std::fs::{read_dir, File};
 use std::io::{BufReader, Read};
 use std::str::FromStr;
@@ -19,7 +19,7 @@ pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector
         let vec_certificates: Vec<&str> =
             cert.split_inclusive("-----END CERTIFICATE-----").collect();
         for certificate_string in vec_certificates {
-            let cert_string = <&str>::clone(&certificate_string).to_owned();
+            let cert_string = certificate_string.to_owned();
             if let Ok(certificate) = Certificate::from_pem(
                 &cert_string
                     .try_into_bytes()
@@ -42,12 +42,12 @@ pub fn get_tls_connector(cacertificates: Option<&String>) -> Result<TlsConnector
 
 #[tracing::instrument(name = "Generating database connection pool.")]
 pub fn generate_connection_pool(
-    postgres_connection_string: &SecretString,
+    postgres_connection_string: &CensoredString,
     tls: bool,
     cacertificates: Option<&String>,
 ) -> Result<Pool, Error> {
     let postgres_configuration =
-        tokio_postgres::Config::from_str(postgres_connection_string.expose_secret()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string", env!("CARGO_PKG_NAME"))})?;
+        tokio_postgres::Config::from_str(postgres_connection_string.as_ref()).with_context(|| {format!("{}::postgres::generate_connection_pool: Failed to retrieve configuration from connection string", env!("CARGO_PKG_NAME"))})?;
     let deadpool_manager_config = ManagerConfig {
         recycling_method: RecyclingMethod::Verified,
     };
@@ -79,7 +79,7 @@ pub async fn check_database_exists(
     database_settings: &DatabaseSettings,
 ) -> (bool, Object) {
     let connection_string_without_database =
-        SecretString::from(database_settings.connection_string_without_database());
+        CensoredString::from_secret(database_settings.connection_string_without_database());
     database_settings.connection_string_without_database_censored();
     let postgres_pool_without_database: Pool = generate_connection_pool(
         &connection_string_without_database,
@@ -120,7 +120,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
     let database_name: &str = database_settings.database.as_ref().unwrap().as_str();
     let (exists, postgres_client) = check_database_exists(database_name, database_settings).await;
     if exists {
-        database_settings.database = Some(database_name.to_owned());
+        database_settings.database = Some(CensoredString::from_secret(database_name.to_owned()));
     } else {
         let _ = run_simple_query(
             &postgres_client,
@@ -129,7 +129,7 @@ pub async fn create_database(database_settings: &mut DatabaseSettings) -> Result
         .await
         .expect("Failed to create database");
     }
-    let connection_string = SecretString::from(database_settings.connection_string());
+    let connection_string = CensoredString::from_secret(database_settings.connection_string());
     generate_connection_pool(
         &connection_string,
         database_settings.ssl.tls,
@@ -195,7 +195,7 @@ pub async fn migrate_database(mut database_settings: DatabaseSettings) -> Pool {
         reader.read_to_end(&mut buffer).unwrap_or_else(|error| {
             panic!(
                 "Failed to read contents of file {}: {}",
-                &migration_script_path, error
+                migration_script_path, error
             )
         });
         let migration_file_contents = String::from_utf8_lossy(&buffer).to_string();
@@ -212,7 +212,7 @@ pub async fn migrate_database(mut database_settings: DatabaseSettings) -> Pool {
                 .unwrap_or_else(|error| {
                     panic!(
                         "Failed to perform query migration of file {}: {}",
-                        &migration_script_path, error
+                        migration_script_path, error
                     )
                 });
             let file_path = std::path::Path::new(&migration_script_path);
@@ -239,7 +239,7 @@ pub async fn create_migrations_table(postgres_client: &Object) {
         installed_on TIMESTAMPTZ NOT NULL DEFAULT now(),
         md5_hash UUID NOT NULL
     );",
-        &migration_table_name
+        migration_table_name
     );
     let _ = run_simple_query(postgres_client, &create_table_statement)
         .await

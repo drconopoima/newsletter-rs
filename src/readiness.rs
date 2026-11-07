@@ -159,7 +159,7 @@ pub async fn probe_readiness(postgres_pool: Arc<Pool>) -> HealthResponse {
             postgres_write,
         );
     }
-    let updated_by_parameter = format!("newsletter-rs {}", &now_string);
+    let updated_by_parameter = format!("newsletter-rs {}", now_string);
     let write_error = "DB write error.";
     let optional_row = match postgres_client
         .query(&statement_write.unwrap(), &[&updated_by_parameter])

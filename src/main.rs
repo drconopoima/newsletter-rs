@@ -2,6 +2,7 @@ use actix_web::dev::Server;
 use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use futures::future;
+use newsletter_rs::censoredstring::CensoredString;
 use newsletter_rs::{
     configuration::{
         get_configuration, DatabaseSettings, MigrationSettings, Settings, SslSettings,
@@ -10,7 +11,6 @@ use newsletter_rs::{
     startup::run,
     telemetry,
 };
-use secrecy::SecretString;
 use std::net::TcpListener;
 use std::time::Duration;
 
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
             config_file, error
         )
     });
-    let connection_string = SecretString::from(configuration.database.connection_string());
+    let connection_string = CensoredString::from_secret(configuration.database.connection_string());
     let database_name = match configuration.database.database.as_ref() {
         Some(database_name) => database_name.to_owned(),
         _ => {
@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
                 "Failed to retrieve a database name from settings, using default value '{}'",
                 database_name
             );
-            database_name.to_owned()
+            CensoredString::from_secret(database_name)
         }
     };
     let migration_settings = configuration

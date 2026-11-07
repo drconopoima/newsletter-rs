@@ -112,7 +112,7 @@ pub async fn run_insert_subscriber_query(
             {
                 return HttpResponse::BadRequest().body(format!(
                     "Input error, email '{}' is already subscribed.",
-                    &form.email
+                    form.email
                 ));
             }
             HttpResponse::InternalServerError().body("DB error while inserting subscription")

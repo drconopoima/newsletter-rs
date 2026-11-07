@@ -36,7 +36,6 @@ tracing-actix-web = { version = "^0.7" }
 serde-aux = { version = "^4", default-features = false, features = [] }
 postgres-native-tls = { "version" = "^0.5" }
 native-tls = { "version" = "^0.2" }
-secrecy = { "version" = "^0.10", features = ["serde"] }
 
 [dev-dependencies]
 arbitrary = { version = "^1" }
@@ -49,9 +48,6 @@ rand = "^0.8"
 fake = "^2"
 quickcheck = "^1"
 quickcheck_macros = "^1"
-
-# [patch.crates-io]
-# config = { git = 'https://github.com/mehcode/config-rs.git', rev = 'c4778596cd3f3b1001ca35bd6960fc1b139746ea' }
 
 # [profile.release]
 # lto = true
