@@ -1,11 +1,11 @@
 use actix_web::dev::Server;
 use deadpool_postgres::Pool;
 use newsletter_rs::{
+    censoredstring::CensoredString,
     configuration::{get_configuration, MigrationSettings},
     postgres::{generate_connection_pool, get_client, migrate_database, run_simple_query},
     telemetry::{get_subscriber, init_subscriber},
 };
-use secrecy::SecretString;
 use std::net::TcpListener;
 use std::sync::Mutex;
 use std::sync::OnceLock;
@@ -57,7 +57,7 @@ async fn launch_http_server() -> ServerPostgres {
     let isolated_database_name = Uuid::new_v4().to_string();
     let database_name = isolated_database_name.replace("-", "");
     let postgres_connection_string =
-        SecretString::from(configuration.database.connection_string_without_database());
+        CensoredString::from_secret(configuration.database.connection_string_without_database());
     let pool = generate_connection_pool(&postgres_connection_string, false, None).unwrap();
     let postgres_client = get_client(pool).await.unwrap();
     let _ = run_simple_query(
@@ -65,7 +65,7 @@ async fn launch_http_server() -> ServerPostgres {
         &format!("CREATE DATABASE \"{}\"", database_name),
     )
     .await;
-    configuration.database.database = Some(database_name.to_owned());
+    configuration.database.database = Some(CensoredString::from_secret(&database_name));
     let postgres_pool: Pool = migrate_database(configuration.database).await;
     let local_addr = "localhost";
     let address: (&str, u16) = (local_addr, 0);
