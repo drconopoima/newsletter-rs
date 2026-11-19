@@ -216,7 +216,7 @@ function migrate_scripts {
 	if grep -Eiq "${TX_END_REGEX}" "${script}" 1>/dev/null 2>&1; then
             set +Ee
             rollbackoutput_file="$(mktemp)"
-            sed -E 's/^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w  1>"${rollbackoutput_file}" 2>&1
+            sed -E 's/^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w 1>"${rollbackoutput_file}" 2>&1
             returncode=$?
             rollbackoutput="$(<"${rollbackoutput_file}")"
             rm -f "${rollbackoutput_file}"
@@ -228,9 +228,9 @@ function migrate_scripts {
                 printf '%s\n' "${rollbackoutput}"
                 exit 4
             fi
-            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" && \
-            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
-            printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 1>/dev/null 2>&1 && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" 1>/dev/null 2>&1 && \
+	    printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
             printf "[WARN] No transactions present, testing non-transactional migration at '%s'\n" "${sqlfilename}"
             set +Ee
@@ -255,8 +255,8 @@ function migrate_scripts {
                 printf '%s\n' "${rollbackoutput}"
                 exit 4
             fi
-            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 2>&1 && \
-            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
+            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 1>/dev/null 2>&1 && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" 1>/dev/null 2>&1 && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
 	
