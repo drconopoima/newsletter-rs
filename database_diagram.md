@@ -18,7 +18,7 @@
 │ version: serial (PK)            │
 │ filename: text UNIQUE           │
 │ installed_on: timestamptz       │
-| md5_hash: uuid UNIQUE           |
+| md5_hash: char(32) UNIQUE       |
 └─────────────────────────────────┘
 ```
 

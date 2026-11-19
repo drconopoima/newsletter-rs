@@ -9,21 +9,21 @@ CREATE UNLOGGED TABLE IF NOT EXISTS _healthcheck (
 
 INSERT INTO _healthcheck (id, updated_by)
 VALUES (true, '20220305131000_postgresql_healthcheck_table.sql')
-ON CONFLICT ON CONSTRAINT _healthcheck_id_key 
-DO 
+ON CONFLICT (id)
+DO
     UPDATE SET updated_by = '20220305131000_postgresql_healthcheck_table.sql';
 
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $_healthcheck_datetime$
     BEGIN
-        NEW.datetime = NOW();
+        NEW.datetime := NOW();
         RETURN NEW;
     END;
 $_healthcheck_datetime$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER set_timestamp
 BEFORE INSERT OR UPDATE ON _healthcheck
-    FOR EACH ROW EXECUTE PROCEDURE trigger_set_timestamp();
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 REVOKE INSERT, UPDATE
 ON TABLE "_healthcheck"
 FROM public
