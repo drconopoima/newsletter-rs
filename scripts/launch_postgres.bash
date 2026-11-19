@@ -212,7 +212,7 @@ function migrate_scripts {
             continue
         fi
         printf "Running migration script '%s'...\n" "${sqlfilename}"
-        set -x;
+	
 	if grep -Eiq "${TX_END_REGEX}" "${script}" 1>/dev/null 2>&1; then
             set +Ee
             sed -E 's/^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
@@ -252,7 +252,7 @@ function migrate_scripts {
             psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
-	{ set +x; } 2>/dev/null
+	
     done < <(find . -type f -name '*.sql' -print0 | sort -z)
 }
 
