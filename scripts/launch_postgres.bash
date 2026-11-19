@@ -10,7 +10,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.9.0"
+readonly SCRIPT_VERSION="0.10.0b1"
 
 ## Section Help
 function print_help {
@@ -23,11 +23,12 @@ function print_help {
     printf "Parameters are customized by exporting any of the following environment variables:\n"
     printf "    POSTGRES_USER: User for postgres. Default: 'postgres'\n"
     printf "    POSTGRES_PASSWORD: Password for POSTGRES_USER. Default: 'password'\n"
-    printf "    POSTGRES_DB: User for postgres. Default: 'newsletter'\n"
+    printf "    POSTGRES_DB: Database name for postgres. Default: 'newsletter'\n"
     printf "    POSTGRES_HOST: Host endpoint for postgres. Default: 'localhost'\n"
     printf "    POSTGRES_PORT: Bind Port for postgres. Default: '5432'\n"
     printf "    POSTGRES_VERSION: Container version at registry. Default: 'latest'\n"
-    printf "    POSTGRES_MAX_CONNECTIONS: Number of connections for postgres to use. Default: 1000"
+    printf "    POSTGRES_MAX_CONNECTIONS: Number of connections for postgres to use. Default: 120"
+    printf "    POSTGRES_CONF_FILE: Path to the PostgreSQL configuration file. Default: 'scripts/postgresql.conf'"
     printf "    CONTAINER_REGISTRY: Container registry to pull from. Default: 'docker.io/library/postgres'\n"
     printf "    SKIP_CONTAINER: Skip container initialization step. Default: 0 (don't skip).\n"
     printf "\n"
@@ -90,7 +91,8 @@ readonly DB_VERSION=${POSTGRES_VERSION:-"latest"}
 readonly DB_REGISTRY=${CONTAINER_REGISTRY:-"docker.io/library/postgres"}
 # Check if a custom postgres host endpoint has been set, otherwise default to 'localhost'
 readonly DB_HOST=${POSTGRES_HOST:-'localhost'}
-readonly POSTGRES_MAX_CONNECTIONS=${POSTGRES_MAX_CONNECTIONS:-1000}
+readonly POSTGRES_MAX_CONNECTIONS=${POSTGRES_MAX_CONNECTIONS:-120}
+readonly POSTGRES_CONF_FILE=${POSTGRES_CONF_FILE:-"${NEWSLETTER_RS_PATH}/scripts/postgresql.conf"}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
 if [[ -z ${SKIP_CONTAINER+undeclared} ]]; then
@@ -120,15 +122,17 @@ if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
             printf '%s\n' "[INFO] Pulling image ${DB_REGISTRY}:${DB_VERSION}..."
             containertech pull "${DB_REGISTRY}:${DB_VERSION}"
         fi
-
+        
         if ! containertech create --rm --name "${CONTAINER_NAME}" \
           -e "POSTGRES_USER=${DB_USER}" \
           -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
           -p "${DB_PORT}":5432 \
           --health-cmd pg_isready --health-interval 10s \
           --health-timeout 5s --health-retries 5 \
+          -v "${POSTGRES_CONF_FILE}":/etc/postgresql/postgresql.conf:Z \
           "${DB_REGISTRY}:${DB_VERSION}" \
-          postgres -N "${POSTGRES_MAX_CONNECTIONS}" 1>/dev/null; then
+          postgres -N "${POSTGRES_MAX_CONNECTIONS}" \
+          --config-file=/etc/postgresql/postgresql.conf 1>/dev/null; then
             printf "[ERROR] Failed to create postgres container" >&2 && exit 3
         fi
 
