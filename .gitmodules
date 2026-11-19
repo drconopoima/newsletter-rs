@@ -1,0 +1,3 @@
+[submodule "postgresql-patroni-spilo-k8s"]
+	path = postgresql-patroni-spilo-k8s
+	url = https://github.com/drconopoima/postgresql-patroni-spilo-k8s.git
