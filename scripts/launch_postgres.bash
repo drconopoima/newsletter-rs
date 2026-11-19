@@ -10,7 +10,7 @@ set -Eeuo pipefail
 readonly SCRIPT_CALLNAME="${0}"
 SCRIPT_NAME="$(basename -- "${SCRIPT_CALLNAME}" 2>/dev/null)"
 readonly SCRIPT_NAME
-readonly SCRIPT_VERSION="0.10.0b1"
+readonly SCRIPT_VERSION="0.10.0"
 
 ## Section Help
 function print_help {
@@ -203,6 +203,7 @@ function migrate_scripts {
         fi
         sqlfilename=$(basename "${script}");
         sqlfilename_escaped="${sqlfilename//\'/\'\'}"
+	
         # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
         #   - `awk` outputs `"1"` or empty string (never non-numeric)
         #   - `[[ "" == "1" ]]` is safe in *all* Bash versions (no numeric coercion)
@@ -211,9 +212,10 @@ function migrate_scripts {
             continue
         fi
         printf "Running migration script '%s'...\n" "${sqlfilename}"
-        if grep -Eiq "${TX_END_REGEX}" "${script}" 1>/dev/null 2>&1; then
+        set -x;
+	if grep -Eiq "${TX_END_REGEX}" "${script}" 1>/dev/null 2>&1; then
             set +Ee
-            sed -E 's/^[[:space:]]*(COMMIT|END)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
+            sed -E 's/^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
             returncode="$?"
             set -Ee
             if [[ returncode -eq 0 ]]; then
@@ -228,6 +230,7 @@ function migrate_scripts {
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
             printf "[WARN]: No transactions present, testing non-transactional migration at '%s'\n" "${sqlfilename}"
+            set +Ee
             {
                 printf 'BEGIN;\n'
                 cat "${script}"
@@ -235,12 +238,21 @@ function migrate_scripts {
             } | psql \
                     --single-transaction \
                     -v ON_ERROR_STOP=1 \
-                    -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}"
-            set +Ee
-            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}"  2>&1 && \
+                    -e -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 2>&1 | rollbackoutput=$(</dev/stdin)
+            returncode="$?"
+            set -Ee
+            if [[ returncode -eq 0 ]]; then
+                printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}";
+            else
+                printf "[FAIL] Script '%s' validation failed with return code '%s'\n" "${sqlfilename}" "${returncode}";
+                printf '%s\n' "${rollbackoutput}"
+                exit 4
+            fi
+            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 2>&1 && \
             psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
+	{ set +x; } 2>/dev/null
     done < <(find . -type f -name '*.sql' -print0 | sort -z)
 }
 
