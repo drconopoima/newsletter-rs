@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS newsletter.subscription(
     PRIMARY KEY (id),
     email citext NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    CHECK (length(email) <= 320),
-    subscription_date timestamptz NOT NULL DEFAULT now()
+    subscription_date timestamptz NOT NULL DEFAULT now(),
+    CHECK (length(email) <= 320)
 );
 COMMIT;

@@ -160,7 +160,7 @@ trap 'rm '"${PGPASSFILE}"'' EXIT
 wait_time=1
 wait_total=0
 max_wait=31
-until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -w; do
+until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"; do
     >&2 printf '%s\n' "[WARN] Postgres is still unavailable - waiting ${wait_time} second(s)..."
     sleep "${wait_time}"
     wait_total=$(( wait_total + wait_time ))
