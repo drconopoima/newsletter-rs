@@ -9,7 +9,7 @@ You'll need to install:
 - [Podman](https://podman.io/getting-started/installation) or [Docker](https://docs.docker.com/get-docker/)
 - [PostgreSQL CLI client](https://www.postgresql.org/download/)
 - Optionally for loadtesting: [k6](https://k6.io/docs/getting-started/installation/)
-- For building v0.1.3 at least rustc 1.75.0 (coming from dependency deadpool-runtime>0.1.4)
+- For building v0.1.4 at least rustc 1.75.0 (coming from dependency deadpool-runtime>0.1.4)
 
 ### Install Podman and build dependencies
 
@@ -98,7 +98,7 @@ curl -s -w'\n%{http_code}\n' http://127.0.0.1:65080/healthcheck | jq '.'
   },
   "output": "",
   "time": "2022-03-06T23:32:10.547917389Z",
-  "version": "0.1.3"
+  "version": "0.1.4"
 }
 200
 ```
