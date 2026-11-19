@@ -27,7 +27,6 @@ function print_help {
     printf "    POSTGRES_HOST: Host endpoint for postgres. Default: 'localhost'\n"
     printf "    POSTGRES_PORT: Bind Port for postgres. Default: '5432'\n"
     printf "    POSTGRES_VERSION: Container version at registry. Default: 'latest'\n"
-    printf "    POSTGRES_MAX_CONNECTIONS: Number of connections for postgres to use. Default: 120"
     printf "    POSTGRES_CONF_FILE: Path to the PostgreSQL configuration file. Default: 'scripts/postgresql.conf'"
     printf "    CONTAINER_REGISTRY: Container registry to pull from. Default: 'docker.io/library/postgres'\n"
     printf "    SKIP_CONTAINER: Skip container initialization step. Default: 0 (don't skip).\n"
@@ -60,27 +59,27 @@ readonly NEWSLETTER_RS_VERSION
 printf "%s (v%s, newsletter-rs v%s)\n" "${SCRIPT_NAME}" "${SCRIPT_VERSION}" "${NEWSLETTER_RS_VERSION}"\
 
 ## Section validate dependencies
-if ! command -v psql 1>/dev/null 2>&1; then
-    printf "[ERROR] psql (PostgreSQL client) is not installed." >&2 && exit 1
-fi
-if command -v podman 1>/dev/null 2>&1; then
-function containertech {
-    podman "$@"
+containertech() {
+    if command -v podman 1>/dev/null 2>&1; then
+        podman "$@"
+    elif command -v docker 1>/dev/null 2>&1; then
+        docker "$@"
+    else
+        printf "[ERROR] No container library (Podman or Docker) is installed." >&2 && exit 1
+    fi
 }
-elif command -v docker 1>/dev/null 2>&1; then
-function containertech {
-    docker "$@"
-}
-else
-    printf "[ERROR] No container library (Podman or Docker) is installed." >&2 && exit 1
-fi
 readonly -f containertech
 
 ## Section Global Variables
 # Check if a custom user has been set, otherwise default to 'postgres'
 readonly DB_USER=${POSTGRES_USER:-"postgres"}
 # Check if a custom password has been set, otherwise default to 'password'
-readonly POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"password"}
+if [[ -z "${POSTGRES_PASSWORD+x}" ]]; then
+    readonly POSTGRES_PASSWORD="password"
+    echo "[WARNING] POSTGRES_PASSWORD not set - using default value which is UNSAFE for production. Always set a secure POSTGRES_PASSWORD environment variable for production deployments." >&2
+else
+    readonly POSTGRES_PASSWORD
+fi
 # Check if a custom database name has been set, otherwise default to 'newsletter'
 readonly DB_NAME=${POSTGRES_DB:-"newsletter"}
 # Check if a custom port has been set, otherwise default to '5432'
@@ -91,7 +90,6 @@ readonly DB_VERSION=${POSTGRES_VERSION:-"latest"}
 readonly DB_REGISTRY=${CONTAINER_REGISTRY:-"docker.io/library/postgres"}
 # Check if a custom postgres host endpoint has been set, otherwise default to 'localhost'
 readonly DB_HOST=${POSTGRES_HOST:-'localhost'}
-readonly POSTGRES_MAX_CONNECTIONS=${POSTGRES_MAX_CONNECTIONS:-120}
 readonly POSTGRES_CONF_FILE=${POSTGRES_CONF_FILE:-"${NEWSLETTER_RS_PATH}/scripts/postgresql.conf"}
 readonly CONTAINER_NAME="newsletter-rs-db"
 
@@ -131,7 +129,7 @@ if [[ ${SKIP_CONTAINER} -eq 0 ]]; then
           --health-timeout 5s --health-retries 5 \
           -v "${POSTGRES_CONF_FILE}":/etc/postgresql/postgresql.conf:Z \
           "${DB_REGISTRY}:${DB_VERSION}" \
-          postgres -N "${POSTGRES_MAX_CONNECTIONS}" \
+          postgres \
           --config-file=/etc/postgresql/postgresql.conf 1>/dev/null; then
             printf "[ERROR] Failed to create postgres container" >&2 && exit 3
         fi
@@ -162,7 +160,7 @@ trap 'rm '"${PGPASSFILE}"'' EXIT
 wait_time=1
 wait_total=0
 max_wait=31
-until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"; do
+until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -w; do
     >&2 printf '%s\n' "[WARN] Postgres is still unavailable - waiting ${wait_time} second(s)..."
     sleep "${wait_time}"
     wait_total=$(( wait_total + wait_time ))
@@ -174,6 +172,7 @@ until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"; do
 done
 wait_total=0
 max_wait=10
+
 until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -c "SELECT 1" >/dev/null 2>&1; do
     sleep 1
     wait_total=$(( wait_total + 1 ))
@@ -184,15 +183,19 @@ until psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -c "SELECT 1" >/dev/n
 done
 printf "[PASS] Postgres is running and ready\n"
 printf "Creating Database Newsletter if not available\n"
-printf '%s\n' "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" |  psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -v PGPASSFILE="${PGPASSFILE}" -w
+printf '%s\n' "SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec" |  psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -w
 printf "[PASS] Database '%s' ready to use\n" "${DB_NAME}"
 
 cd "${NEWSLETTER_RS_PATH}/migrations" || { printf '%s\n' "Couldn't set directory '${NEWSLETTER_RS_PATH}/migrations' failed"; exit 1; };
 
+TX_END_REGEX='^[[:space:]]*(COMMIT|END)([[:space:]]+TRANSACTION)?[[:space:]]*;'
+export TX_END_REGEX
+
 function migrate_scripts {
     local script
-    for script in $(find . -type f -name "*.sql" -print0 | sort -z | tr -d '\n' | tr '\0' '\n'); do
+    while IFS= read -r -d '' script; do
         [ -e "${script}" ] || continue # skip over non-existent filenames
+        md5=""
         if command -v md5sum 1>/dev/null 2>&1; then
             md5="$(md5sum "${script}" | awk '{ print $1 }')";
         elif command -v md5 1>/dev/null 2>&1; then
@@ -203,14 +206,14 @@ function migrate_scripts {
         # Use `== "1"` (not `-eq 1`) for Bash 3.2+ compatibility:
         #   - `awk` outputs `"1"` or empty string (never non-numeric)
         #   - `[[ "" == "1" ]]` is safe in *all* Bash versions (no numeric coercion)
-        if [[ "$( psql --set ON_ERROR_STOP=1 -t -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" --set PGPASSFILE="${PGPASSFILE}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename = CAST('${sqlfilename_escaped}' AS text)" 2>/dev/null | awk '{ print $1 }')" == "1" ]]; then
+        if [[ "$( psql --set ON_ERROR_STOP=1 -t -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "SELECT 1 FROM _initialization_migrations WHERE filename = CAST('${sqlfilename_escaped}' AS text)" 2>/dev/null | awk '{ print $1 }')" == "1" ]]; then
             printf "[WARN] Skipping script '%s' as it's already applied\n" "${sqlfilename}";
             continue
         fi
         printf "Running migration script '%s'...\n" "${sqlfilename}"
-        if grep -q '^COMMIT\;$' "${script}" 1>/dev/null 2>&1; then
+        if grep -Eiq "${TX_END_REGEX}" "${script}" 1>/dev/null 2>&1; then
             set +Ee
-            sed 's/^COMMIT\;/ROLLBACK;/g' "${script}" | psql -v ON_ERROR_STOP=1 --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
+            sed -E 's/^[[:space:]]*(COMMIT|END)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
             returncode="$?"
             set -Ee
             if [[ returncode -eq 0 ]]; then
@@ -220,17 +223,25 @@ function migrate_scripts {
                 printf '%s\n' "${rollbackoutput}"
                 exit 4
             fi
-            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}" && \
-            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
-            printf "[WARN]: No transactions present at script '%s', applying without prior testing\n" "${sqlfilename}"
+            printf "[WARN]: No transactions present, testing non-transactional migration at '%s'\n" "${sqlfilename}"
+            {
+                printf 'BEGIN;\n'
+                cat "${script}"
+                printf '\nROLLBACK;\n'
+            } | psql \
+                    --single-transaction \
+                    -v ON_ERROR_STOP=1 \
+                    -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}"
             set +Ee
-            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w --file="${script}"  2>&1 && \
-            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -v PGPASSFILE="${PGPASSFILE}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' )" && \
+            psql -e --quiet -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}"  2>&1 && \
+            psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         fi
-    done
+    done < <(find . -type f -name '*.sql' -print0 | sort -z)
 }
 
 migrate_scripts
