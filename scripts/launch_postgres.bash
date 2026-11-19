@@ -188,7 +188,7 @@ printf "[PASS] Database '%s' ready to use\n" "${DB_NAME}"
 
 cd "${NEWSLETTER_RS_PATH}/migrations" || { printf '%s\n' "Couldn't set directory '${NEWSLETTER_RS_PATH}/migrations' failed"; exit 1; };
 
-TX_END_REGEX='^[[:space:]]*(COMMIT|END)([[:space:]]+TRANSACTION)?[[:space:]]*;'
+TX_END_REGEX='^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;'
 export TX_END_REGEX
 
 function migrate_scripts {
@@ -215,8 +215,11 @@ function migrate_scripts {
 	
 	if grep -Eiq "${TX_END_REGEX}" "${script}" 1>/dev/null 2>&1; then
             set +Ee
-            sed -E 's/^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w 2>&1 | rollbackoutput=$(</dev/stdin)
-            returncode="$?"
+            rollbackoutput_file="$(mktemp)"
+            sed -E 's/^[[:space:]]*(COMMIT)([[:space:]]+TRANSACTION)?[[:space:]]*;([[:space:]]*--.*)?$/ROLLBACK;/I' "${script}" | psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w  1>"${rollbackoutput_file}" 2>&1
+            returncode=$?
+            rollbackoutput="$(<"${rollbackoutput_file}")"
+            rm -f "${rollbackoutput_file}"
             set -Ee
             if [[ returncode -eq 0 ]]; then
                 printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}";
@@ -229,18 +232,22 @@ function migrate_scripts {
             psql -e --quiet -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w -c "INSERT into _initialization_migrations ( filename, md5_hash ) VALUES ( '${sqlfilename_escaped}', '${md5}' ) ON CONFLICT (filename) DO NOTHING" && \
             printf "[PASS] Applied DB migration script '%s' successfully\n" "${sqlfilename}"
         else
-            printf "[WARN]: No transactions present, testing non-transactional migration at '%s'\n" "${sqlfilename}"
+            printf "[WARN] No transactions present, testing non-transactional migration at '%s'\n" "${sqlfilename}"
             set +Ee
+            rollbackoutput_file="$(mktemp)"
             {
                 printf 'BEGIN;\n'
                 cat "${script}"
                 printf '\nROLLBACK;\n'
-            } | psql \
-                    --single-transaction \
+            } |
+                psql \
                     -v ON_ERROR_STOP=1 \
-                    -e -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 2>&1 | rollbackoutput=$(</dev/stdin)
-            returncode="$?"
+                    -e -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -w --file="${script}" 1>"${rollbackoutput_file}" 2>&1
+            returncode=$?
+            rollbackoutput="$(<"${rollbackoutput_file}")"
+            rm -f "${rollbackoutput_file}"
             set -Ee
+            
             if [[ returncode -eq 0 ]]; then
                 printf "[PASS] Tested script '%s' successfully\n" "${sqlfilename}";
             else
